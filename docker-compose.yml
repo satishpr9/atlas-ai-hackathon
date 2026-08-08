@@ -1,0 +1,14 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: atlas_mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=atlas_finance_db
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:
