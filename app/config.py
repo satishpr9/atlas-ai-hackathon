@@ -1,5 +1,10 @@
 import os
 from typing import Optional
+from dotenv import load_dotenv
+
+# Force load .env over any stale system environment variables
+load_dotenv(override=True)
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):

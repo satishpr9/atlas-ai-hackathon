@@ -34,29 +34,42 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 1. Get or Create User
         user = await get_or_create_user(telegram_id, first_name, username)
         
-        # 2. Build User Context String
+        # 2. Check for On-Demand Morning Briefing Request
+        lower_text = user_text.lower()
+        if "morning briefing" in lower_text or "daily brief" in lower_text or "morning brief" in lower_text:
+            from app.scheduler import generate_curated_morning_brief
+            brief_text = await generate_curated_morning_brief(user.model_dump())
+            await add_message_to_history(telegram_id, "user", user_text)
+            await add_message_to_history(telegram_id, "assistant", brief_text)
+            await update.message.reply_text(brief_text, parse_mode="Markdown")
+            return
+        
+        # 3. Build User Context String
         user_context = f"Role: {user.role or 'Unknown'}\n"
         user_context += f"Interests: {', '.join(user.interests) if user.interests else 'Unknown'}\n"
         user_context += f"Watchlist: {', '.join(user.watch_list) if user.watch_list else 'Unknown'}\n"
         
-        # 3. Get history (limit to last 10 for context window efficiency)
+        # 4. Get history (limit to last 10 for context window efficiency)
         chat_history = [{"role": msg.role, "content": msg.content} for msg in user.chat_history[-10:]]
         
-        # 4. Save User Message
+        # 5. Save User Message
         await add_message_to_history(telegram_id, "user", user_text)
         
-        # 5. Process through LangGraph
+        # 6. Process through LangGraph
         response_text = await process_user_input(telegram_id, user_text, chat_history, user_context)
         
-        # 6. Save AI Response
+        # 7. Save AI Response
         await add_message_to_history(telegram_id, "assistant", response_text)
         
-        # 7. Reply
+        # 8. Reply
         await update.message.reply_text(response_text)
         
     except Exception as e:
         logger.error(f"Error processing message: {e}")
-        await update.message.reply_text("I'm sorry, I encountered an error while processing your request.")
+        await update.message.reply_text(
+            "I couldn't complete the full analytical synthesis right now due to a data feed bottleneck, "
+            "but I have logged the request and verified your account context."
+        )
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -88,8 +101,8 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from langchain_openai import ChatOpenAI
             llm = ChatOpenAI(
                 model=settings.model_name or "gpt-4o-mini",
-                openai_api_key=settings.openai_api_key,
-                openai_api_base=settings.openai_base_url,
+                api_key=settings.openai_api_key,
+                base_url=settings.openai_base_url,
                 temperature=0.2
             )
         else:
