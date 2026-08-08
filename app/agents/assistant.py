@@ -49,11 +49,20 @@ from app.agents.tools import financial_tools
 tools = [update_preferences] + financial_tools
 
 # --- AGENT SETUP ---
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash",
-    google_api_key=settings.gemini_api_key,
-    temperature=0.2
-)
+if settings.openai_api_key:
+    from langchain_openai import ChatOpenAI
+    llm = ChatOpenAI(
+        model=settings.model_name or "gpt-4o-mini",
+        openai_api_key=settings.openai_api_key,
+        openai_api_base=settings.openai_base_url,
+        temperature=0.2
+    )
+else:
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        google_api_key=settings.gemini_api_key,
+        temperature=0.2
+    )
 
 # Bind tools to LLM
 llm_with_tools = llm.bind_tools(tools)
@@ -71,15 +80,20 @@ async def agent_node(state: AgentState):
     user_id = state.get("user_id")
     
     sys_content = (
-        "You are an AI-powered Financial Assistant for finance professionals, communicating via Telegram. "
-        "You are professional, concise, and highly conversational. Do NOT sound like a typical chatbot. "
-        "If you don't know the user's role or interests, ask them naturally as part of the conversation (onboarding). "
-        "When you learn about their role, interests, or companies they want to watch, immediately call the `update_preferences` tool to save it. "
-        "Always pass the `user_id` argument to the tool (it is provided below). \n\n"
-        f"--- USER PROFILE ---\n"
+        "You are an AI-powered Financial Assistant for finance professionals, communicating via Telegram.\n"
+        "You are conversational, intelligent, highly articulate, and concise. Never act like a generic chatbot or command-line bot.\n\n"
+        "--- ONBOARDING & CONVERSATION GUIDELINES ---\n"
+        "1. If this is a new user (or their profile has Unknowns), guide them naturally through a smooth, conversational onboarding.\n"
+        "2. Don't ask all onboarding questions at once. Ask one or two natural questions at a time:\n"
+        "   - Understand their role (e.g., Investor, Analyst, Founder, Portfolio Manager).\n"
+        "   - Ask what specific companies, sectors, or macro themes they actively track.\n"
+        "   - Ask what insights matter most to them (e.g., Earnings calls, SEC filings, Breaking News, Daily Morning Briefings).\n"
+        "3. Whenever they mention their role, companies of interest, or watchlist tickers, ALWAYS immediately invoke the `update_preferences` tool to save it.\n"
+        "4. The user can skip any onboarding question at any time and ask direct financial questions—seamlessly switch to answering them with live data tools.\n\n"
+        f"--- CURRENT USER PROFILE ---\n"
         f"Telegram ID: {user_id}\n"
         f"{user_context}\n"
-        "--------------------\n"
+        "----------------------------\n"
     )
     
     # Ensure system message is first

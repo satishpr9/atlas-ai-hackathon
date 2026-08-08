@@ -1,9 +1,13 @@
 import os
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     telegram_bot_token: str
-    gemini_api_key: str
+    gemini_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    openai_base_url: str = "https://api.aicredits.in/v1"
+    model_name: str = "gpt-4o-mini"
     mongodb_uri: str = "mongodb://localhost:27017"
     database_name: str = "atlas_finance_db"
     

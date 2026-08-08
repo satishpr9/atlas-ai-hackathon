@@ -15,6 +15,10 @@ async def main():
     logger.info("Starting Telegram bot (polling mode)...")
     app = await get_application()
     
+    # Start APScheduler for daily proactive intelligence
+    from app.scheduler import setup_scheduler
+    scheduler = setup_scheduler(app.bot)
+    
     await app.initialize()
     await app.start()
     

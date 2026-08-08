@@ -58,6 +58,74 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error processing message: {e}")
         await update.message.reply_text("I'm sorry, I encountered an error while processing your request.")
 
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle financial document/PDF uploads and summarize key insights.
+    """
+    document = update.message.document
+    if not document.file_name.lower().endswith(".pdf"):
+        await update.message.reply_text("Please upload a PDF document (e.g. Earnings Report, Pitch Deck, 10-K).")
+        return
+        
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action='typing')
+    await update.message.reply_text("📄 Reading and analyzing your financial document...")
+    
+    try:
+        from pypdf import PdfReader
+        from io import BytesIO
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        from langchain_core.messages import SystemMessage, HumanMessage
+        
+        file = await context.bot.get_file(document.file_id)
+        file_bytes = await file.download_as_bytearray()
+        
+        reader = PdfReader(BytesIO(file_bytes))
+        extracted_text = ""
+        for page in reader.pages[:15]: # Process up to 15 pages for quick response
+            extracted_text += page.extract_text() or ""
+            
+        if settings.openai_api_key:
+            from langchain_openai import ChatOpenAI
+            llm = ChatOpenAI(
+                model=settings.model_name or "gpt-4o-mini",
+                openai_api_key=settings.openai_api_key,
+                openai_api_base=settings.openai_base_url,
+                temperature=0.2
+            )
+        else:
+            llm = ChatGoogleGenerativeAI(
+                model="gemini-2.0-flash",
+                google_api_key=settings.gemini_api_key,
+                temperature=0.2
+            )
+        
+        prompt = (
+            "You are an elite financial analyst. Analyze this financial document and provide:\n"
+            "1. Executive Summary (2-3 sentences)\n"
+            "2. Key Financial Highlights (Revenue, Margins, Growth)\n"
+            "3. Strategic Announcements or Management Guidance\n"
+            "4. Critical Risks & Red Flags\n\n"
+            f"Document Text:\n{extracted_text[:30000]}"
+        )
+        
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
+        
+        output_text = ""
+        if isinstance(response.content, list):
+            for part in response.content:
+                if isinstance(part, dict) and "text" in part:
+                    output_text += part["text"]
+                elif isinstance(part, str):
+                    output_text += part
+        else:
+            output_text = str(response.content)
+            
+        await update.message.reply_text(f"📊 **Financial Document Analysis:**\n\n{output_text}")
+        
+    except Exception as e:
+        logger.error(f"Error analyzing document: {e}")
+        await update.message.reply_text(f"Sorry, I had trouble parsing the document: {e}")
+
 async def get_application() -> Application:
     """
     Build and return the telegram application.
@@ -66,6 +134,7 @@ async def get_application() -> Application:
 
     # Add handlers
     app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     return app
