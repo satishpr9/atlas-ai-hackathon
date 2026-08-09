@@ -45,20 +45,18 @@ class AgentState(TypedDict):
 def build_system_prompt(user_id: int, user_context: str) -> str:
     now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     return (
-        "You are Atlas, an elite AI Financial Assistant designed for institutional and private equity investors, analysts, and founders.\n"
+        "You are Atlas, an elite AI Financial Assistant designed for institutional investors, analysts, and tech founders.\n"
         f"CURRENT CALENDAR DATE: {CURRENT_DATE_STR} (Current Time: {now_utc}). Year is 2026.\n\n"
-        "--- CRITICAL OPERATIONAL PRINCIPLES ---\n"
-        "1. TEMPORAL ACCURACY: Never treat past events (e.g. 2024 elections, 2025 events) as today's catalysts. Always anchor analysis to August 2026.\n"
-        "2. CONCISE & PUNCHY: Answer the exact question asked and STOP. Do NOT add unnecessary conversational fluff, unsolicited questions, or generic small talk at the end of answers.\n"
-        "3. CITATIONS & TIMESTAMPS: Every market metric or price must clearly state its source and timestamp (e.g. 'Data as of: Aug 9, 2026 | Source: Yahoo Finance').\n"
-        "4. CONTEXT RESOLUTION: When the user asks to compare 'the companies I just mentioned' (e.g. NVDA, AMD, TSM), compare ONLY those exact companies. Do not pull in other unmentioned watchlist items unless requested.\n"
-        "5. SEPARATION OF FACTS VS ANALYSIS: Clearly distinguish verified hard data (revenue, market cap, % move) from analyst interpretation/sentiment.\n"
-        "6. FACTUAL MEMORY ONLY: If the user says they are a 'Founder', record ONLY 'Founder'. Never hallucinate or merge roles (e.g. 'Founder and Analyst') unless explicitly confirmed.\n"
-        "7. VERIFIED HEADLINES ONLY: When discussing news, always provide actual headline titles, publishers, relative times, and 'Why it matters'. If no breaking news is available, state that explicitly.\n\n"
-        f"--- USER CONTEXT & EXPLICIT PREFERENCES ---\n"
+        "--- CORE PRINCIPLES ---\n"
+        "1. FORMATTING: Use the ultra-clean Telegram style with intuitive icons (📊, 💰, 🏢, 📰, 💡, 📚). Never output raw markdown '##' headers.\n"
+        "2. CONCISE & INSTITUTIONAL: Deliver high-signal financial analysis and STOP. Do not add conversational filler or unprompted questions.\n"
+        "3. ACCURACY & TIMESTAMPS: Every market metric or quote must include exact timestamp and verified source (Yahoo Finance).\n"
+        "4. MEMORY & CONTINUITY: Actively recognize user preferences, watchlists, and investment horizons. If the user mentions their role (e.g. 'Founder', 'Analyst'), use the update_user_facts tool to record it.\n"
+        "5. SEPARATION OF FACTS VS SENTIMENT: Ground-truth financial numbers must never be hallucinated.\n\n"
+        f"--- USER PROFILE & MEMORY ---\n"
         f"Telegram ID: {user_id}\n"
         f"{user_context}\n"
-        "--------------------------------------------\n"
+        "------------------------------\n"
     )
 
 async def agent_node(state: AgentState):
@@ -93,7 +91,7 @@ workflow.add_edge("tools", "agent")
 
 app = workflow.compile()
 
-# Helper to identify tickers in user text
+# Helper to identify tickers in text
 KNOWN_TICKER_MAP = {
     "microsoft": "MSFT", "msft": "MSFT",
     "alphabet": "GOOGL", "google": "GOOGL", "googl": "GOOGL", "goog": "GOOGL",
@@ -110,7 +108,6 @@ KNOWN_TICKER_MAP = {
 
 def extract_tickers(text: str) -> List[str]:
     found = []
-    # Normalize words
     words = re.findall(r'\b[A-Za-z0-9\.\-]+\b', text.lower())
     for w in words:
         if w in KNOWN_TICKER_MAP:
@@ -119,56 +116,92 @@ def extract_tickers(text: str) -> List[str]:
                 found.append(sym)
     return found
 
-async def process_user_input(user_id: int, user_input: str, chat_history: List[Dict[str, str]], user_context: str) -> str:
-    """
-    Main entry point with intelligent routing for Comparisons and Movement Analysis.
-    """
-    lower_input = user_input.lower()
-    tickers = extract_tickers(user_input)
-    
-    # 1. Specialized Comparison Engine (e.g. "Compare Microsoft and Google", "Compare MSFT and Alphabet in terms of market cap, sector and news")
-    if "compare" in lower_input or "versus" in lower_input or " vs " in lower_input:
-        if len(tickers) >= 2:
+class AtlasAgentService:
+    @staticmethod
+    async def process_message(user_id: int, user_input: str) -> str:
+        from app.services import get_or_create_user, save_message, get_recent_chat_history
+        
+        user = await get_or_create_user(user_id)
+        chat_history = await get_recent_chat_history(user_id, limit=6)
+        
+        # Build dynamic context block
+        ctx_parts = []
+        if user.role:
+            ctx_parts.append(f"User Role: {user.role}")
+        if user.watch_list:
+            ctx_parts.append(f"Active Watchlist: {', '.join(user.watch_list)}")
+        if user.interests:
+            ctx_parts.append(f"Interests: {', '.join(user.interests)}")
+            
+        user_context = "\n".join(ctx_parts) if ctx_parts else "Standard Investor Profile"
+        
+        lower_input = user_input.lower()
+        tickers = extract_tickers(user_input)
+        
+        # Contextual resolution: If user asks "Compare with Google" and prior message was about MSFT
+        if len(tickers) == 1 and ("compare" in lower_input or "versus" in lower_input or " vs " in lower_input):
+            for prev_msg in reversed(chat_history):
+                prev_tickers = extract_tickers(prev_msg.get("content", ""))
+                for pt in prev_tickers:
+                    if pt not in tickers:
+                        tickers.append(pt)
+                        break
+                if len(tickers) >= 2:
+                    break
+                    
+        # 1. Specialized Comparison Engine
+        if ("compare" in lower_input or "versus" in lower_input or " vs " in lower_input) and len(tickers) >= 2:
             logger.info(f"Routing to specialized CompanyComparisonEngine for {tickers[0]} and {tickers[1]}")
-            return await CompanyComparisonEngine.compare(tickers[0], tickers[1], llm)
-
-    # 2. Specialized Catalyst / Movement Engine (e.g. "Why is Tesla moving?", "Why did Nvidia drop?")
-    if any(phrase in lower_input for phrase in ["why is", "why did", "what moved", "catalyst", "catalysts", "moving today", "dropping today", "surging today"]):
-        if tickers:
+            response = await CompanyComparisonEngine.compare(tickers[0], tickers[1], llm)
+            await save_message(user_id, "user", user_input)
+            await save_message(user_id, "assistant", response)
+            return response
+            
+        # 2. Specialized Catalyst / Movement Engine
+        if any(phrase in lower_input for phrase in ["why is", "why did", "what moved", "catalyst", "moving today", "dropping today", "surging today"]) and tickers:
             logger.info(f"Routing to specialized MarketMovementAnalyzer for {tickers[0]}")
-            return await MarketMovementAnalyzer.analyze_movement(tickers[0], llm)
+            response = await MarketMovementAnalyzer.analyze_movement(tickers[0], llm)
+            await save_message(user_id, "user", user_input)
+            await save_message(user_id, "assistant", response)
+            return response
+            
+        # 3. Standard Stateful LangGraph Engine
+        messages = []
+        for msg in chat_history:
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                messages.append(AIMessage(content=msg["content"]))
+                
+        messages.append(HumanMessage(content=user_input))
+        
+        inputs = {
+            "messages": messages,
+            "user_context": user_context,
+            "user_id": user_id
+        }
+        
+        config = {"configurable": {"thread_id": str(user_id)}}
+        result = await app.ainvoke(inputs, config=config)
+        
+        final_answer = "I processed your request, but could not synthesize a verified response. Please try rephrasing."
+        for msg in reversed(result["messages"]):
+            if isinstance(msg, AIMessage) and msg.content:
+                content = msg.content
+                if isinstance(content, list):
+                    text_parts = []
+                    for p in content:
+                        if isinstance(p, dict) and "text" in p:
+                            text_parts.append(p["text"])
+                        elif isinstance(p, str):
+                            text_parts.append(p)
+                    final_answer = "".join(text_parts)
+                else:
+                    final_answer = str(content)
+                break
+                
+        await save_message(user_id, "user", user_input)
+        await save_message(user_id, "assistant", final_answer)
+        return final_answer
 
-    # 3. Standard Multi-Tool Conversational Engine
-    messages = []
-    for msg in chat_history:
-        if msg["role"] == "user":
-            messages.append(HumanMessage(content=msg["content"]))
-        elif msg["role"] == "assistant":
-            messages.append(AIMessage(content=msg["content"]))
-            
-    messages.append(HumanMessage(content=user_input))
-    
-    inputs = {
-        "messages": messages,
-        "user_context": user_context,
-        "user_id": user_id
-    }
-    
-    config = {"configurable": {"thread_id": str(user_id)}}
-    
-    result = await app.ainvoke(inputs, config=config)
-    
-    for msg in reversed(result["messages"]):
-        if isinstance(msg, AIMessage) and msg.content:
-            content = msg.content
-            if isinstance(content, list):
-                text_parts = []
-                for p in content:
-                    if isinstance(p, dict) and "text" in p:
-                        text_parts.append(p["text"])
-                    elif isinstance(p, str):
-                        text_parts.append(p)
-                return "".join(text_parts)
-            return str(content)
-            
-    return "I processed your request, but could not synthesize a verified response. Please try rephrasing."
+atlas_agent = AtlasAgentService()

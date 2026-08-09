@@ -90,6 +90,15 @@ async def add_message_to_history(telegram_id: int, role: str, content: str):
     except Exception:
         pass
 
+async def save_message(telegram_id: int, role: str, content: str):
+    await add_message_to_history(telegram_id, role, content)
+
+async def get_recent_chat_history(telegram_id: int, limit: int = 6) -> List[Dict[str, str]]:
+    if telegram_id in _LOCAL_USERS_CACHE:
+        history = _LOCAL_USERS_CACHE[telegram_id].get("chat_history", [])
+        return history[-limit:]
+    return []
+
 async def update_user_profile(telegram_id: int, updates: dict):
     if telegram_id in _LOCAL_USERS_CACHE:
         _LOCAL_USERS_CACHE[telegram_id].update(updates)
