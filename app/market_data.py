@@ -39,6 +39,7 @@ class MarketQuote(BaseModel):
     fifty_two_week_high: Optional[float] = None
     fifty_two_week_low: Optional[float] = None
     timestamp: str
+    currency: str = "USD"
     source: str = "Finnhub (Real-time)"
 
 class FinancialDataRouter:
@@ -59,12 +60,19 @@ class FinancialDataRouter:
         return cls._finnhub_client
 
     @staticmethod
-    def _format_market_cap(val: Optional[float]) -> str:
+    def _format_market_cap(val: Optional[float], currency: str = "USD") -> str:
         if not val:
             return "N/A"
-        # Finnhub market cap is usually in millions (USD)
-        # Yahoo Finance market cap is in actual units
-        # Let's standardize on standard units assuming it's converted to actual units before calling this
+        
+        if currency == "INR":
+            # Indian numbering system: 1 Lakh Crore = 10^12, 1 Crore = 10^7
+            if val >= 1_000_000_000_000:
+                return f"₹{val / 1_000_000_000_000:.2f} Lakh Cr"
+            elif val >= 10_000_000:
+                return f"₹{val / 10_000_000:,.0f} Cr"
+            return f"₹{val:,.0f}"
+
+        # Standard USD / Global Format
         if val >= 1_000_000_000_000:
             return f"${val / 1_000_000_000_000:.2f}T"
         elif val >= 1_000_000_000:
@@ -116,10 +124,17 @@ class FinancialDataRouter:
         
         aliases = company_aliases.get(symbol.upper(), [sym_lower, name.lower().split()[0]])
         
+        # Filter out broad index / listicle / macro noise
+        macro_noise = [
+            "how many of", "which stocks", "best stocks to buy", "top 10", "top 5",
+            "even without", "s&p 500", "biggest earnings beat", "3 stocks", "these stocks"
+        ]
+        for noise in macro_noise:
+            if noise in title_lower:
+                return False
+
         for alias in aliases:
             if re.search(r'\b' + re.escape(alias) + r'\b', title_lower):
-                if "how many of" in title_lower or "which stocks" in title_lower or "best stocks to buy" in title_lower or "top 10" in title_lower:
-                    return False
                 return True
         return False
 
@@ -169,6 +184,7 @@ class FinancialDataRouter:
             change = current_price - prev_close
             pct_change = (change / prev_close) * 100 if prev_close else 0.0
             mkt_cap = info.get('marketCap')
+            curr = info.get('currency', 'INR' if symbol.upper().endswith(('.NS', '.BO')) else 'USD')
             
             return MarketQuote(
                 symbol=symbol.upper(),
@@ -180,12 +196,13 @@ class FinancialDataRouter:
                 volume=int(hist['Volume'].iloc[-1]),
                 avg_volume=info.get('averageVolume'),
                 market_cap=mkt_cap,
-                market_cap_str=cls._format_market_cap(mkt_cap),
+                market_cap_str=cls._format_market_cap(mkt_cap, currency=curr),
                 pe_ratio=round(info.get('trailingPE'), 2) if info.get('trailingPE') else None,
                 forward_pe=round(info.get('forwardPE'), 2) if info.get('forwardPE') else None,
                 fifty_two_week_high=info.get('fiftyTwoWeekHigh'),
                 fifty_two_week_low=info.get('fiftyTwoWeekLow'),
                 timestamp=datetime.now(timezone.utc).strftime("%H:%M UTC"),
+                currency=curr,
                 source="Yahoo Finance"
             )
         except Exception as e:

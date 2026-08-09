@@ -9,22 +9,10 @@ CURRENT_DATE_STR = "August 9, 2026"
 def get_stock_quote(ticker: str) -> str:
     """
     Get the verified, real-time stock price, percentage change, and volume for a company.
-    Formatted cleanly for Telegram with timestamps.
+    Returns strictly the stock price and key market stats without unnecessary analysis.
     """
-    quote = MarketDataProvider.get_quote(ticker)
-    if not quote:
-        return f"Unable to retrieve verified market quote for '{ticker.upper()}'."
-    
-    sign = "+" if quote.percent_change >= 0 else ""
-    now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
-    pe_str = f" · {quote.pe_ratio:.1f}x P/E" if quote.pe_ratio else ""
-    
-    return (
-        f"💰 {quote.symbol}  ${quote.price:,.2f} ({sign}{quote.percent_change:.2f}% today)\n"
-        f"Market Cap: {quote.market_cap_str}{pe_str}\n"
-        f"Volume: {quote.volume:,}\n\n"
-        f"📚 {quote.source} · Aug 9, 2026 · {now_utc}"
-    )
+    from app.agents.price_engine import StockPriceEngine
+    return StockPriceEngine.get_price(ticker)
 
 @tool
 def get_market_overview(scope: str = "us") -> str:

@@ -11,6 +11,7 @@ from app.agents.tools import financial_tools, update_user_facts
 from app.agents.market_movement import MarketMovementAnalyzer
 from app.agents.comparison import CompanyComparisonEngine
 from app.agents.overview import CompanyOverviewEngine
+from app.agents.price_engine import StockPriceEngine
 from app.agents.research import DeepResearchEngine
 from app.agents.productivity import productivity_tools
 from datetime import datetime, timezone
@@ -196,10 +197,13 @@ class AtlasAgentService:
         if user.connected_accounts:
             ctx_parts.append(f"Connected Integrations: {', '.join(user.connected_accounts)}")
             
-        user_context = "\n".join(ctx_parts) if ctx_parts else "Standard Investor Profile"
-        
         lower_input = user_input.lower().strip()
         tickers = extract_tickers(user_input)
+        
+        if tickers:
+            ctx_parts.append(f"Detected Tickers in Context: {', '.join(tickers)}")
+            
+        user_context = "\n".join(ctx_parts) if ctx_parts else "Standard Investor Profile"
         
         # --- INTENT 0: Morning & Evening Briefings ---
         if any(phrase in lower_input for phrase in ["morning brief", "morning briefing", "daily brief", "daily briefing", "market overview", "market brief"]):
@@ -276,8 +280,27 @@ class AtlasAgentService:
             await save_message(user_id, "assistant", response)
             return response
 
+        # --- INTENT 3.5: Instant Price Lookup (Minimum Reliable Info) ---
+        is_price_query = any(phrase in lower_input for phrase in [
+            "price", "quote", "how much is", "trading at", "what is the price",
+            "stock price", "share price", "ka price", "price kya", "current price",
+            "cmp", "market price", "rate kya", "kya bhav", "bhav kya"
+        ]) or (len(tickers) == 1 and any(w in lower_input.split() for w in ["price", "quote", "cmp", "rate", "cost"]))
+        is_movement_or_deep = any(phrase in lower_input for phrase in [
+            "why is", "why did", "what moved", "catalyst", "deep dive", "research",
+            "compare", "versus", "tell me about", "overview"
+        ])
+        if is_price_query and not is_movement_or_deep and tickers:
+            logger.info(f"Routing to StockPriceEngine for {tickers[0]}")
+            response = StockPriceEngine.get_price(tickers[0])
+            await save_message(user_id, "user", user_input)
+            await save_message(user_id, "assistant", response)
+            return response
+
         # --- INTENT 4: Company Overview / Research Profile ---
-        is_overview_prompt = any(phrase in lower_input for phrase in ["tell me about", "overview of", "what is", "profile of", "analyze", "summary of"]) or (len(tickers) == 1 and len(lower_input.split()) <= 3)
+        is_overview_prompt = any(phrase in lower_input for phrase in ["tell me about", "overview of", "profile of", "analyze", "summary of"]) or (
+            len(tickers) == 1 and not is_price_query and any(phrase in lower_input for phrase in ["what is", "who is"])
+        ) or (len(tickers) == 1 and len(lower_input.split()) <= 2 and not is_price_query)
         if is_overview_prompt and tickers:
             logger.info(f"Routing to specialized CompanyOverviewEngine for {tickers[0]}")
             response = await CompanyOverviewEngine.get_overview(tickers[0], llm)
