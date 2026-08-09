@@ -1,5 +1,8 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Database:
     client: AsyncIOMotorClient = None
@@ -7,9 +10,12 @@ class Database:
 
     @classmethod
     def connect(cls):
-        cls.client = AsyncIOMotorClient(settings.mongodb_uri)
+        cls.client = AsyncIOMotorClient(
+            settings.mongodb_uri,
+            serverSelectionTimeoutMS=2000
+        )
         cls.db = cls.client[settings.database_name]
-        print(f"Connected to MongoDB: {settings.database_name}")
+        logger.info(f"Connected to MongoDB: {settings.database_name}")
 
     @classmethod
     def disconnect(cls):

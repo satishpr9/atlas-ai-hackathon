@@ -105,9 +105,9 @@ async def generate_curated_morning_brief(user_doc: dict) -> str:
 async def send_daily_briefings(bot):
     logger.info("Executing proactive daily intelligence job...")
     try:
-        users_collection = db.get_db()["users"]
-        cursor = users_collection.find({})
-        async for user in cursor:
+        from app.services import get_all_users
+        users = get_all_users()
+        for user in users:
             telegram_id = user.get("telegram_id")
             if not telegram_id:
                 continue

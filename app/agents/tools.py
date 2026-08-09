@@ -78,23 +78,29 @@ async def update_user_facts(role: Optional[str] = None, interests: Optional[List
     if not user_id:
         return "Error: user_id required."
         
-    from app.database import db
-    users_collection = db.get_db()["users"]
+    from app.services import update_user_profile, get_or_create_user
+    user = await get_or_create_user(user_id)
     
-    update_ops = {"$set": {"updated_at": datetime.now(timezone.utc)}}
+    updates = {}
     if role:
-        update_ops["$set"]["role"] = role
+        updates["role"] = role
         
-    push_ops = {}
+    current_interests = list(user.interests) if user.interests else []
     if interests:
-        push_ops["interests"] = {"$each": interests}
-    if watch_list:
-        push_ops["watch_list"] = {"$each": [t.upper() for t in watch_list]}
+        for item in interests:
+            if item not in current_interests:
+                current_interests.append(item)
+        updates["interests"] = current_interests
         
-    if push_ops:
-        update_ops["$addToSet"] = push_ops
+    current_watchlist = list(user.watch_list) if user.watch_list else []
+    if watch_list:
+        for ticker in watch_list:
+            t = ticker.upper()
+            if t not in current_watchlist:
+                current_watchlist.append(t)
+        updates["watch_list"] = current_watchlist
 
-    await users_collection.update_one({"telegram_id": user_id}, update_ops)
+    await update_user_profile(user_id, updates)
     return f"Saved verified user preferences for {user_id}."
 
 financial_tools = [get_stock_quote, compare_companies_data, get_company_news, update_user_facts]
