@@ -27,3 +27,5 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+scratch_test_*.py
