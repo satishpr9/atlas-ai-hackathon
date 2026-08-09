@@ -64,7 +64,7 @@ class CompanyOverviewEngine:
             
         comp_news, ind_news = MarketDataProvider.get_company_news_classified(sym, limit=2)
         
-        brand_name = BRAND_MAP.get(quote.symbol, quote.name.split()[0])
+        brand_name = BRAND_MAP.get(quote.symbol, quote.name.split(',')[0].split('(')[0].strip() if quote.name else quote.symbol)
         emoji = BRAND_EMOJIS.get(quote.symbol, "🏢")
         
         sign = "+" if quote.percent_change >= 0 else ""
@@ -87,7 +87,7 @@ class CompanyOverviewEngine:
         sources_str = " · ".join(sources_list[:3])
         
         sector = overview.get("sector", "Technology")
-        business_line = overview.get("core_business", "Hardware · Software · Digital Operations")
+        business_line = overview.get("core_business", overview.get("industry", "Technology & Operations"))
 
         prompt = (
             f"You are Atlas, an elite institutional financial intelligence partner.\n"

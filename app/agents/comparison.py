@@ -49,8 +49,8 @@ class CompanyComparisonEngine:
         if not q1 or not q2:
             return f"Unable to retrieve verified market data for {t1} vs {t2}."
             
-        name1 = BRAND_MAP.get(q1.symbol, q1.name.split()[0])
-        name2 = BRAND_MAP.get(q2.symbol, q2.name.split()[0])
+        name1 = BRAND_MAP.get(q1.symbol, q1.name.split(',')[0].split('(')[0].strip() if q1.name else q1.symbol)
+        name2 = BRAND_MAP.get(q2.symbol, q2.name.split(',')[0].split('(')[0].strip() if q2.name else q2.symbol)
         
         comp1, ind1 = MarketDataProvider.get_company_news_classified(t1, limit=2)
         comp2, ind2 = MarketDataProvider.get_company_news_classified(t2, limit=2)

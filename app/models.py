@@ -25,6 +25,10 @@ class UserProfile(BaseModel):
     # Context summary (a persistent synthesis of who they are and their workflow)
     context_summary: str = ""
     
+    # Uploaded document context for conversational Q&A
+    last_document_text: str = ""
+    last_document_name: str = ""
+    
     # History
     chat_history: List[MessageRecord] = Field(default_factory=list)
     

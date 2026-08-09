@@ -11,7 +11,7 @@ from app.agents.tools import financial_tools, update_user_facts
 from app.agents.market_movement import MarketMovementAnalyzer
 from app.agents.comparison import CompanyComparisonEngine
 from app.agents.overview import CompanyOverviewEngine
-from app.agents.research import DeepResearchEngine, PRIVATE_COMPANIES_LEDGER
+from app.agents.research import DeepResearchEngine
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -212,15 +212,6 @@ class AtlasAgentService:
             await save_message(user_id, "assistant", wrap_res)
             return wrap_res
 
-        # --- INTENT 0.5: Private Unicorn Research (OpenAI, SpaceX, Stripe, Anthropic, Databricks, ByteDance) ---
-        for p_key in PRIVATE_COMPANIES_LEDGER.keys():
-            if p_key in lower_input:
-                logger.info(f"Routing to DeepResearchEngine for private company: {p_key}")
-                research_res = await DeepResearchEngine.research_entity(user_input, llm)
-                await save_message(user_id, "user", user_input)
-                await save_message(user_id, "assistant", research_res)
-                return research_res
-
         # Contextual multi-turn comparison resolution ONLY when user says "compare it with X" or "compare with X"
         if len(tickers) == 1 and any(phrase in lower_input for phrase in ["compare it with", "compare with", "versus it", "vs it", "now compare to", "compare against"]):
             for prev_msg in reversed(chat_history):
@@ -248,14 +239,19 @@ class AtlasAgentService:
             await save_message(user_id, "assistant", response)
             return response
 
-        # --- INTENT 3: Deep Research / Financial Performance / Leadership / M&A / Filings ---
+        # --- INTENT 3: Deep Research (public OR private, any entity, any question) ---
+        # Triggers on research keywords OR mentions of known private companies
+        PRIVATE_ENTITY_NAMES = ["openai", "anthropic", "spacex", "stripe", "databricks", "bytedance", "palantir technologies", "anduril", "figma", "canva", "discord", "notion", "scale ai", "hugging face", "mistral", "cohere", "perplexity"]
+        is_private_entity = any(name in lower_input for name in PRIVATE_ENTITY_NAMES)
         is_deep_research = any(phrase in lower_input for phrase in [
-            "deep dive", "research", "financial performance", "earnings summary", 
-            "leadership", "funding", "m&a", "merger", "acquisition", "regulatory filing", 
-            "10-k", "10-q", "sec filing", "market sentiment", "industry trends"
+            "deep dive", "research", "financial performance", "earnings summary",
+            "leadership", "funding", "valuation", "m&a", "merger", "acquisition",
+            "regulatory filing", "10-k", "10-q", "sec filing", "market sentiment",
+            "industry trends", "risks", "moat", "competitive"
         ])
-        if is_deep_research and tickers:
-            logger.info(f"Routing to DeepResearchEngine for {tickers[0]}")
+        if is_private_entity or (is_deep_research and tickers):
+            entity_label = user_input if is_private_entity else tickers[0]
+            logger.info(f"Routing to DeepResearchEngine for: {entity_label}")
             response = await DeepResearchEngine.research_entity(user_input, llm)
             await save_message(user_id, "user", user_input)
             await save_message(user_id, "assistant", response)

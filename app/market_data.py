@@ -214,31 +214,28 @@ class MarketDataProvider:
             ticker = yf.Ticker(symbol.upper())
             info = ticker.info or {}
             
-            core_business_map = {
-                "MSFT": "Cloud · Enterprise · Office · AI",
-                "GOOGL": "Search · Ads · YouTube · Cloud · AI",
-                "GOOG": "Search · Ads · YouTube · Cloud · AI",
-                "AAPL": "Hardware Ecosystem · Services · Apple Silicon",
-                "NVDA": "AI Accelerators · GPUs · CUDA Platform",
-                "TSLA": "EVs · Full Self-Driving · Energy Storage",
-                "RIVN": "Electric Trucks & SUVs · Commercial Delivery Vans · Autonomy",
-                "LCID": "Luxury Electric Sedans · Powertrain Technology",
-                "AMD": "Server Processors · AI Instinct Chips · GPUs",
-                "TSM": "Advanced Semiconductor Foundry · CoWoS Packaging"
-            }
+            # Build core business dynamically from yfinance API data
+            industry = info.get('industry', '')
+            sector = info.get('sector', 'Technology')
+            summary = info.get('longBusinessSummary', '')
             
-            core_biz = core_business_map.get(symbol.upper(), info.get('industry', 'Technology & Operations'))
+            # Extract a concise business line from the API industry field
+            core_biz = industry if industry else f"{sector} & Operations"
             
             return {
                 "symbol": symbol.upper(),
                 "name": info.get('longName', symbol.upper()),
-                "sector": info.get('sector', 'Technology'),
-                "industry": info.get('industry', 'Software/Hardware'),
+                "sector": sector,
+                "industry": industry or 'Technology',
                 "core_business": core_biz,
+                "business_summary": summary[:500] if summary else "",
                 "market_cap": info.get('marketCap'),
                 "market_cap_str": cls._format_market_cap(info.get('marketCap')),
                 "pe_ratio": info.get('trailingPE'),
                 "forward_pe": info.get('forwardPE'),
+                "revenue": info.get('totalRevenue'),
+                "profit_margin": info.get('profitMargins'),
+                "employees": info.get('fullTimeEmployees'),
                 "timestamp": datetime.now(timezone.utc).strftime("%H:%M UTC")
             }
         except Exception as e:
