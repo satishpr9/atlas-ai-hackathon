@@ -29,3 +29,7 @@ htmlcov/
 Thumbs.db
 
 scratch_test_*.py
+
+test_aicredits*
+
+check_models*
