@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from pydantic import BaseModel, Field
 import yfinance as yf
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ class NewsArticle(BaseModel):
     published_at: str
     relative_time: str
     summary: str
-    category: str = "Company-Specific" # "Company-Specific", "Industry", "Macro"
+    category: str = "Company-Specific" # "Company-Specific", "Industry", "Macro", "Irrelevant"
     is_direct_catalyst: bool = True
 
 class MarketQuote(BaseModel):
@@ -72,29 +73,37 @@ class MarketDataProvider:
             return "Recent"
 
     @classmethod
-    def classify_catalyst(cls, symbol: str, name: str, title: str, summary: str) -> str:
+    def is_strictly_company_specific(cls, symbol: str, name: str, title: str) -> bool:
         """
-        Classifies whether an article is Company-Specific, Industry Context, or Macro Market news.
+        Strictly tests if the headline directly refers to the company (in the title).
+        Filters out generic listicles and other companies' earnings.
         """
         title_lower = title.lower()
-        summary_lower = summary.lower()
         sym_lower = symbol.lower()
         
-        name_parts = [p.lower() for p in name.split() if len(p) > 2 and p.lower() not in ["inc", "corp", "corporation", "ltd", "class", "com"]]
+        # Core company identifiers
+        company_aliases = {
+            "MSFT": ["microsoft", "msft", "azure", "windows", "copilot"],
+            "GOOGL": ["google", "alphabet", "googl", "goog", "youtube", "deepmind", "gemini"],
+            "GOOG": ["google", "alphabet", "googl", "goog", "youtube", "deepmind", "gemini"],
+            "AAPL": ["apple", "aapl", "iphone", "tim cook", "ipad", "macbook"],
+            "NVDA": ["nvidia", "nvda", "blackwell", "jensen huang", "hopper"],
+            "TSLA": ["tesla", "tsla", "elon musk", "cybertruck", "full self-driving", "fsd"],
+            "AMD": ["amd", "lisa su", "ryzen", "epyc", "instinct"],
+            "TSM": ["tsmc", "taiwan semiconductor", "tsm"]
+        }
         
-        # Check if entity is explicitly named
-        explicit_match = (sym_lower in title_lower) or any(p in title_lower for p in name_parts)
+        aliases = company_aliases.get(symbol.upper(), [sym_lower, name.lower().split()[0]])
         
-        if explicit_match:
-            return "Company-Specific"
-            
-        # Check if it's general market / economy
-        macro_keywords = ["fed", "rate cut", "inflation", "cpi", "warsh", "powell", "treasury", "jobs report", "gdp", "s&p 500", "nasdaq rally", "stock rally"]
-        if any(k in title_lower for k in macro_keywords):
-            return "Macro"
-            
-        # Otherwise it's industry / competitor news
-        return "Industry"
+        # Must contain one of the direct aliases as a whole word / phrase
+        for alias in aliases:
+            if re.search(r'\b' + re.escape(alias) + r'\b', title_lower):
+                # Filter out generic listicles like "How many of the largest companies..."
+                if "how many of" in title_lower or "which stocks" in title_lower or "best stocks to buy" in title_lower:
+                    return False
+                return True
+                
+        return False
 
     @classmethod
     def get_quote(cls, symbol: str) -> Optional[MarketQuote]:
@@ -135,12 +144,17 @@ class MarketDataProvider:
             return None
 
     @classmethod
-    def get_recent_news(cls, symbol: str, limit: int = 4) -> List[NewsArticle]:
+    def get_company_news_classified(cls, symbol: str, limit: int = 5) -> Tuple[List[NewsArticle], List[NewsArticle]]:
+        """
+        Returns (company_specific_articles, industry_articles) strictly segregated.
+        """
         try:
             ticker = yf.Ticker(symbol.upper())
             name = ticker.info.get('longName', symbol) if ticker.info else symbol
             raw_news = ticker.news or []
-            articles = []
+            
+            company_specific = []
+            industry_items = []
             
             for item in raw_news:
                 content = item.get('content', item) if isinstance(item, dict) else {}
@@ -161,10 +175,9 @@ class MarketDataProvider:
                 relative_time = cls._calculate_relative_time(pub_date)
                 summary = content.get('summary', '') or content.get('description', '')
                 
-                category = cls.classify_catalyst(symbol, name, title, summary)
-                is_direct = (category == "Company-Specific")
+                is_company = cls.is_strictly_company_specific(symbol, name, title)
                 
-                articles.append(NewsArticle(
+                article = NewsArticle(
                     symbol=symbol.upper(),
                     title=title.strip(),
                     publisher=publisher.strip(),
@@ -172,17 +185,28 @@ class MarketDataProvider:
                     published_at=pub_date or "Recent",
                     relative_time=relative_time,
                     summary=summary.strip(),
-                    category=category,
-                    is_direct_catalyst=is_direct
-                ))
+                    category="Company-Specific" if is_company else "Industry",
+                    is_direct_catalyst=is_company
+                )
                 
-                if len(articles) >= limit:
-                    break
-                    
-            return articles
+                if is_company:
+                    if len(company_specific) < limit:
+                        company_specific.append(article)
+                else:
+                    # Filter out completely unrelated third-party tickers (like Geron or listicles)
+                    if not any(noise in title.lower() for noise in ["how many", "which stocks", "best stocks", "top 10"]):
+                        if len(industry_items) < 2:
+                            industry_items.append(article)
+                            
+            return company_specific, industry_items
         except Exception as e:
             logger.error(f"Error fetching news for {symbol}: {e}")
-            return []
+            return [], []
+
+    @classmethod
+    def get_recent_news(cls, symbol: str, limit: int = 4) -> List[NewsArticle]:
+        comp, ind = cls.get_company_news_classified(symbol, limit)
+        return comp if comp else ind
 
     @classmethod
     def get_company_overview(cls, symbol: str) -> Dict[str, Any]:
@@ -191,17 +215,17 @@ class MarketDataProvider:
             info = ticker.info or {}
             
             core_business_map = {
-                "MSFT": "Azure Cloud Infrastructure, Office 365 / Copilot, Windows, Enterprise Software & AI",
-                "GOOGL": "Google Search & Advertising, YouTube Ads, Google Cloud Platform (GCP), DeepMind AI",
-                "GOOG": "Google Search & Advertising, YouTube Ads, Google Cloud Platform (GCP), DeepMind AI",
-                "AAPL": "iPhone & Hardware Ecosystem, Apple Services (App Store/iCloud), Apple Silicon, AI Intelligence",
-                "NVDA": "Data Center AI Accelerators (Blackwell/Hopper GPUs), CUDA Software Platform, Networking",
-                "TSLA": "Electric Vehicles (Model 3/Y/Cyber), Full Self-Driving (FSD) Software, Energy Storage & Supercharging",
-                "AMD": "EPYC Server Processors, Instinct AI Accelerators (MI300), Ryzen CPUs, Radeon GPUs",
-                "TSM": "Leading-edge Semiconductor Foundry (3nm/2nm Wafers), Advanced Packaging (CoWoS) for AI"
+                "MSFT": "Cloud · Enterprise · Office · AI",
+                "GOOGL": "Search · Ads · YouTube · Cloud · AI",
+                "GOOG": "Search · Ads · YouTube · Cloud · AI",
+                "AAPL": "Hardware Ecosystem · Services · Apple Silicon",
+                "NVDA": "AI Accelerators · GPUs · CUDA Platform",
+                "TSLA": "EVs · Full Self-Driving · Energy Storage",
+                "AMD": "Server Processors · AI Instinct Chips · GPUs",
+                "TSM": "Advanced Semiconductor Foundry · CoWoS Packaging"
             }
             
-            core_biz = core_business_map.get(symbol.upper(), info.get('industry', 'Technology & Commercial Operations'))
+            core_biz = core_business_map.get(symbol.upper(), info.get('industry', 'Technology & Operations'))
             
             return {
                 "symbol": symbol.upper(),

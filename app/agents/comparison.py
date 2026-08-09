@@ -8,9 +8,23 @@ logger = logging.getLogger(__name__)
 
 CURRENT_DATE_STR = "August 9, 2026"
 
+BRAND_MAP = {
+    "MSFT": "Microsoft",
+    "GOOGL": "Google",
+    "GOOG": "Google",
+    "AAPL": "Apple",
+    "NVDA": "NVIDIA",
+    "TSLA": "Tesla",
+    "AMD": "AMD",
+    "TSM": "TSMC",
+    "AMZN": "Amazon",
+    "META": "Meta"
+}
+
 class CompanyComparisonEngine:
     """
-    Ultra-clean, icon-driven institutional comparison engine designed natively for Telegram.
+    Dedicated high-precision comparison engine using clear brand names (e.g. Microsoft vs Google / Alphabet)
+    with strict entity-specific news segregation, explicit trailing P/E values, and standalone industry context.
     """
     @classmethod
     async def compare(cls, ticker1: str, ticker2: str, llm) -> str:
@@ -24,89 +38,88 @@ class CompanyComparisonEngine:
         if not q1 or not q2:
             return f"Unable to retrieve verified market data for {t1} vs {t2}."
             
-        news1 = MarketDataProvider.get_recent_news(t1, limit=2)
-        news2 = MarketDataProvider.get_recent_news(t2, limit=2)
+        name1 = BRAND_MAP.get(q1.symbol, q1.name.split()[0])
+        name2 = BRAND_MAP.get(q2.symbol, q2.name.split()[0])
+        
+        comp1, ind1 = MarketDataProvider.get_company_news_classified(t1, limit=2)
+        comp2, ind2 = MarketDataProvider.get_company_news_classified(t2, limit=2)
         
         # 1. Delta Math
         cap1 = q1.market_cap or 0
         cap2 = q2.market_cap or 0
         
         if cap1 >= cap2:
-            larger_ticker, smaller_ticker = q1.symbol, q2.symbol
+            larger_name = name1
+            larger_ticker = q1.symbol
             diff_val = cap1 - cap2
             pct_larger = ((cap1 - cap2) / cap2 * 100) if cap2 else 0
         else:
-            larger_ticker, smaller_ticker = q2.symbol, q1.symbol
+            larger_name = name2
+            larger_ticker = q2.symbol
             diff_val = cap2 - cap1
             pct_larger = ((cap2 - cap1) / cap1 * 100) if cap1 else 0
             
         diff_str = MarketDataProvider._format_market_cap(diff_val)
-        pe1_str = f"{q1.pe_ratio:.1f}x" if q1.pe_ratio else "N/A"
-        pe2_str = f"{q2.pe_ratio:.1f}x" if q2.pe_ratio else "N/A"
+        pe1_str = f"{q1.pe_ratio:.1f}x P/E" if q1.pe_ratio else "N/A P/E"
+        pe2_str = f"{q2.pe_ratio:.1f}x P/E" if q2.pe_ratio else "N/A P/E"
         
-        # 2. Simplified Business Labels
-        def clean_biz(full_text: str) -> str:
-            # e.g. "Azure Cloud Infrastructure, Office 365, Windows" -> "Cloud · Enterprise Software · AI"
-            if "Azure" in full_text: return "Cloud · Enterprise Software · Office · AI"
-            if "Search" in full_text: return "Search & Ads · YouTube · Cloud · AI"
-            if "Blackwell" in full_text: return "AI Accelerators · GPUs · CUDA Platform"
-            if "iPhone" in full_text: return "Hardware Ecosystem · Services · Apple Silicon"
-            if "Electric" in full_text: return "EVs · Full Self-Driving · Energy Storage"
-            if "EPYC" in full_text: return "Server Processors · AI Instinct Chips · GPUs"
-            if "Foundry" in full_text: return "Advanced Semiconductor Foundry · CoWoS Packaging"
-            return full_text[:40]
+        biz1 = ov1.get('core_business', 'Technology & Commercial Operations')
+        biz2 = ov2.get('core_business', 'Technology & Commercial Operations')
 
-        biz1 = clean_biz(ov1.get('core_business', ''))
-        biz2 = clean_biz(ov2.get('core_business', ''))
-
-        # 3. News Headlines
-        def format_news_snippet(articles: List[NewsArticle], sym: str) -> str:
+        # 2. Strict News Section Assembly
+        def build_company_news_line(articles: List[NewsArticle], brand: str) -> str:
             if not articles:
-                return f"{sym} → No major breaking catalysts in the last 24h"
-            lines = []
+                return f"{brand}\nNo major company-specific catalyst verified today."
+            lines = [brand]
             for a in articles:
-                tag = "Industry: " if a.category == "Industry" else ("Macro: " if a.category == "Macro" else "")
-                lines.append(f"{sym} → {tag}{a.title} ({a.publisher} · {a.relative_time})")
+                lines.append(f"• {a.title} ({a.publisher} | {a.relative_time})")
             return "\n".join(lines)
 
-        news_text_1 = format_news_snippet(news1, q1.symbol)
-        news_text_2 = format_news_snippet(news2, q2.symbol)
+        company_news_1 = build_company_news_line(comp1, name1)
+        company_news_2 = build_company_news_line(comp2, name2)
         
-        publishers = list(set([a.publisher for a in news1 + news2 if a.publisher]))
-        all_sources = ["Yahoo Finance"] + publishers
-        sources_str = " · ".join(all_sources[:4])
+        # Collect distinct verified sources
+        all_articles = comp1 + comp2 + ind1 + ind2
+        publishers = list(set([a.publisher for a in all_articles if a.publisher]))
+        sources_list = ["Yahoo Finance"] + [p for p in publishers if p != "Financial Media"]
+        sources_str = " · ".join(sources_list[:3])
         
         now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
 
         prompt = (
-            f"You are Atlas, an elite institutional financial assistant communicating via Telegram.\n"
+            f"You are Atlas, an elite institutional financial assistant communicating on Telegram.\n"
             f"CURRENT DATE: {CURRENT_DATE_STR} ({now_utc}).\n\n"
-            "TASK: Generate the comparison using the EXACT ultra-clean, icon-driven Telegram layout below.\n"
-            "DO NOT use heavy markdown headers like '##' or excessive bolding. Keep it fast to scan.\n\n"
-            f"--- VERIFIED DATA ---\n"
-            f"{q1.symbol}: ${q1.price:,.2f} · {q1.market_cap_str} ({pe1_str} P/E) · Business: {biz1}\n"
-            f"{q2.symbol}: ${q2.price:,.2f} · {q2.market_cap_str} ({pe2_str} P/E) · Business: {biz2}\n"
-            f"Delta: {larger_ticker} is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
-            f"Recent News:\n{news_text_1}\n{news_text_2}\n"
-            f"---------------------\n\n"
-            "REQUIRED OUTPUT TEMPLATE (Follow exactly):\n\n"
-            f"📊 {q1.symbol} vs {q2.symbol}\n\n"
+            f"TASK: Output the comparison between {name1} ({q1.symbol}) and {name2} ({q2.symbol}) using the EXACT clean structure below.\n"
+            "Use clear recognizable brand names (Microsoft, Google / Alphabet).\n\n"
+            f"--- DATA LEDGER ---\n"
+            f"{name1} ({q1.symbol}): ${q1.price:,.2f} · {q1.market_cap_str} · {pe1_str} · Business: {biz1}\n"
+            f"{name2} ({q2.symbol}): ${q2.price:,.2f} · {q2.market_cap_str} · {pe2_str} · Business: {biz2}\n"
+            f"Delta: {larger_name} ({larger_ticker}) is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
+            f"Verified Company News:\n{company_news_1}\n\n{company_news_2}\n"
+            f"-------------------\n\n"
+            "EXACT OUTPUT TEMPLATE (Follow strictly):\n\n"
+            f"📊 {name1} vs {name2}\n\n"
             "💰 Market\n"
-            f"{q1.symbol}  ${q1.price:,.2f} · {q1.market_cap_str} ({pe1_str} P/E)\n"
-            f"{q2.symbol}  ${q2.price:,.2f} · {q2.market_cap_str} ({pe2_str} P/E)\n\n"
-            f"{larger_ticker} is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
+            f"{name1} ({q1.symbol})  ${q1.price:,.2f} · {q1.market_cap_str} · {pe1_str}\n"
+            f"{name2} ({q2.symbol})  ${q2.price:,.2f} · {q2.market_cap_str} · {pe2_str}\n\n"
+            f"{larger_name} is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
             "🏢 Business\n"
-            f"{q1.symbol} → {biz1}\n"
-            f"{q2.symbol} → {biz2}\n\n"
-            "📰 Latest\n"
-            f"{news_text_1}\n"
-            f"{news_text_2}\n\n"
+            f"{name1} → {biz1}\n"
+            f"{name2} → {biz2}\n\n"
+            "📰 Latest\n\n"
+            f"{company_news_1}\n\n"
+            f"{company_news_2}\n\n"
+            "🌐 Industry\n"
+            "AI infrastructure scaling and enterprise cloud competition remain key themes for both companies.\n\n"
             "💡 Bottom line\n"
-            f"• {larger_ticker} holds the larger market cap while trading at a {'lower' if q1.pe_ratio and q2.pe_ratio and min(q1.pe_ratio, q2.pe_ratio) == (q1.pe_ratio if larger_ticker == q1.symbol else q2.pe_ratio) else 'higher'} trailing multiple.\n"
-            f"• {q1.symbol} is primarily exposed to enterprise software & cloud, while {q2.symbol} relies on advertising/search alongside cloud and AI.\n"
-            "• Key metrics to watch: Cloud growth divergence (Azure vs GCP), AI monetization, and advertising margins.\n\n"
+            f"{larger_name} is larger and currently trades at a {'lower' if q1.pe_ratio and q2.pe_ratio and min(q1.pe_ratio, q2.pe_ratio) == (q1.pe_ratio if larger_ticker == q1.symbol else q2.pe_ratio) else 'higher'} trailing P/E.\n\n"
+            f"{name1} → Stronger enterprise software & Azure exposure\n"
+            f"{name2} → Stronger Search & digital advertising exposure\n\n"
+            "Watch:\n"
+            "Azure vs GCP growth · AI monetization · Ad margins\n\n"
             "📚 Sources\n"
-            f"{sources_str} · Aug 9, 2026, {now_utc}"
+            f"{sources_str}\n"
+            f"Aug 9, 2026 · {now_utc}"
         )
         
         try:
@@ -124,14 +137,14 @@ class CompanyComparisonEngine:
         except Exception as e:
             logger.error(f"Error in comparison output: {e}")
             return (
-                f"📊 {q1.symbol} vs {q2.symbol}\n\n"
+                f"📊 {name1} vs {name2}\n\n"
                 f"💰 Market\n"
-                f"{q1.symbol}  ${q1.price:,.2f} · {q1.market_cap_str} ({pe1_str} P/E)\n"
-                f"{q2.symbol}  ${q2.price:,.2f} · {q2.market_cap_str} ({pe2_str} P/E)\n\n"
-                f"{larger_ticker} is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
+                f"{name1} ({q1.symbol})  ${q1.price:,.2f} · {q1.market_cap_str} · {pe1_str}\n"
+                f"{name2} ({q2.symbol})  ${q2.price:,.2f} · {q2.market_cap_str} · {pe2_str}\n\n"
+                f"{larger_name} is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
                 f"🏢 Business\n"
-                f"{q1.symbol} → {biz1}\n"
-                f"{q2.symbol} → {biz2}\n\n"
+                f"{name1} → {biz1}\n"
+                f"{name2} → {biz2}\n\n"
                 f"📚 Sources\n"
-                f"Yahoo Finance · Aug 9, 2026, {now_utc}"
+                f"Yahoo Finance · Aug 9, 2026 · {now_utc}"
             )
