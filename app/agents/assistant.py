@@ -12,6 +12,7 @@ from app.agents.market_movement import MarketMovementAnalyzer
 from app.agents.comparison import CompanyComparisonEngine
 from app.agents.overview import CompanyOverviewEngine
 from app.agents.research import DeepResearchEngine
+from app.agents.productivity import productivity_tools
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ else:
     )
 
 # Bind tools to LLM
-llm_with_tools = llm.bind_tools(financial_tools)
+llm_with_tools = llm.bind_tools(financial_tools + productivity_tools)
 
 # Define State
 class AgentState(TypedDict):
@@ -49,16 +50,19 @@ def build_system_prompt(user_id: int, user_context: str) -> str:
     return (
         "You are Atlas, an elite institutional AI Financial Analyst and Executive Intelligence Partner.\n"
         f"CURRENT CALENDAR DATE: {CURRENT_DATE_STR} (Current Time: {now_utc}). Year is 2026.\n\n"
-        "--- CONVERSATIONAL & RESEARCH PRINCIPLES ---\n"
-        "1. COMMUNICATE NATURALLY: Speak naturally as an experienced financial analyst and trusted executive partner. Users should never need commands or predefined keywords.\n"
-        "2. COMPREHENSIVE RESEARCH: Provide concise, high-signal research across public equities and private unicorns (OpenAI, Anthropic, SpaceX, Stripe, Databricks, ByteDance). Always explain WHY information matters for capital allocation, margin durability, and competitive moats.\n"
-        "3. INTENT-AWARE PRECISION: Provide direct, well-structured financial answers immediately without asking unnecessary stalling questions.\n"
-        "4. EXECUTIVE ASSISTANCE & SCHEDULING: When users request meeting scheduling, earnings reminders, or Google Drive/Sheet reviews (e.g. 'Schedule a team discussion on Apple earnings', 'Remind me before Nvidia call'):\n"
-        "   - Respond constructively as an executive assistant, confirming event details or parameters, and offering to sync with their connected calendar/drive.\n"
-        "5. MEMORY & TRACKING: When users ask to track stocks or set custom alerts (e.g. 'Track Tesla and notify me on SEC filings', 'Alert me if NVDA moves 5%'):\n"
-        "   - Use the 'update_user_facts' tool to store their watchlist and alert preferences, and confirm naturally.\n"
-        "6. ZERO BOT FLUFF ON ANALYSIS: Use the ultra-clean Telegram layout with intuitive icons (📊, 💰, 🏢, 📌, 📰, 💡, 📚). Never output raw markdown '##' headers.\n"
-        "7. GROUND TRUTH: Never invent unverified financial numbers, technical support levels, or unproven causal links.\n\n"
+        "--- LIVE DATA PRINCIPLES (CRITICAL) ---\n"
+        "1. LIVE DATA FIRST: Always use your tools (get_stock_quote, get_market_overview, get_earnings_calendar, get_company_news) to retrieve LIVE data before answering. Never rely on training knowledge for prices, market caps, P/E ratios, or recent events.\n"
+        "2. NEVER FABRICATE NUMBERS: If a tool returns no data, say so. Never invent stock prices, financial metrics, support/resistance levels, or analyst targets.\n"
+        "3. UNCERTAINTY OVER CONFIDENCE: If you cannot verify information from live tools, clearly communicate uncertainty: 'Based on available data...' or 'Unable to verify current...' Never present unverified claims as facts.\n"
+        "4. SOURCE ATTRIBUTION: Every financial data point must cite its source (Yahoo Finance, specific news publisher, etc.).\n\n"
+        "--- CONVERSATIONAL PRINCIPLES ---\n"
+        "5. COMMUNICATE NATURALLY: Speak naturally as an experienced financial analyst. Users should never need commands or predefined keywords.\n"
+        "6. COMPREHENSIVE RESEARCH: Provide concise, high-signal research across public equities and private companies. Always explain WHY information matters.\n"
+        "7. INTENT-AWARE PRECISION: Provide direct, well-structured answers immediately without unnecessary stalling questions.\n"
+        "8. EXECUTIVE ASSISTANCE: When users request meeting scheduling, earnings reminders, or calendar tasks — respond constructively and confirm details using productivity tools (read_recent_emails, get_upcoming_meetings, schedule_meeting).\n"
+        "9. PRODUCTIVITY INTEGRATION: Proactively check emails or calendar when asked about 'my schedule', 'action items', or specific communications from a person/company. Synthesize this context with financial research.\n"
+        "10. MEMORY & TRACKING: When users ask to track stocks or set alerts — use 'update_user_facts' to store preferences, and confirm naturally.\n"
+        "11. CLEAN FORMATTING: Use ultra-clean Telegram layout with icons (📊, 💰, 🏢, 📌, 📰, 💡, 📚). Never output raw markdown '##' headers.\n\n"
         f"--- USER PROFILE & MEMORY ---\n"
         f"Telegram ID: {user_id}\n"
         f"{user_context}\n"
@@ -77,7 +81,7 @@ async def agent_node(state: AgentState):
     response = await llm_with_tools.ainvoke([sys_msg] + filtered_messages)
     return {"messages": [response]}
 
-tool_node = ToolNode(financial_tools)
+tool_node = ToolNode(financial_tools + productivity_tools)
 
 def should_continue(state: AgentState):
     messages = state["messages"]
@@ -135,7 +139,18 @@ KNOWN_TICKER_MAP = {
     # Streaming & Crypto
     "netflix": "NFLX", "nflx": "NFLX",
     "spotify": "SPOT", "spot": "SPOT",
-    "coinbase": "COIN", "coin": "COIN"
+    "coinbase": "COIN", "coin": "COIN",
+    # Indian Market (NSE)
+    "reliance": "RELIANCE.NS", "ril": "RELIANCE.NS",
+    "tcs": "TCS.NS",
+    "hdfc": "HDFCBANK.NS", "hdfc bank": "HDFCBANK.NS",
+    "sbi": "SBIN.NS", "state bank": "SBIN.NS",
+    "infosys": "INFY.NS", "infy": "INFY.NS",
+    "itc": "ITC.NS",
+    "bharti airtel": "BHARTIARTL.NS", "airtel": "BHARTIARTL.NS",
+    "icici": "ICICIBANK.NS", "icici bank": "ICICIBANK.NS",
+    "zomato": "ZOMATO.NS",
+    "tata motors": "TATAMOTORS.NS"
 }
 
 def extract_tickers(text: str) -> List[str]:
@@ -148,8 +163,9 @@ def extract_tickers(text: str) -> List[str]:
             if sym not in found:
                 found.append(sym)
                 
-    # 2. Check for explicit uppercase tickers in original text (e.g. RIVN, TSLA, AAPL)
-    raw_upper_words = re.findall(r'\b[A-Z]{1,5}\b', text)
+    # 2. Check for explicit uppercase tickers in original text (e.g. RIVN, TSLA, AAPL, RELIANCE.NS)
+    # The regex allows optional exchange suffixes like .NS or .BO
+    raw_upper_words = re.findall(r'\b[A-Z]{1,10}(?:\.[A-Z]{1,2})?\b', text)
     for w in raw_upper_words:
         if w not in ["A", "I", "AN", "THE", "AND", "OR", "VS", "IS", "ON", "IN", "AT", "TO", "FOR", "OF", "WITH", "BY"]:
             if w not in found:
@@ -241,6 +257,9 @@ class AtlasAgentService:
 
         # --- INTENT 3: Deep Research (public OR private, any entity, any question) ---
         # Triggers on research keywords OR mentions of known private companies
+        # BUT explicitly avoid hijacking productivity/email/calendar queries
+        is_productivity_query = any(word in lower_input for word in ["email", "emails", "calendar", "meeting", "schedule", "sync", "remind"])
+        
         PRIVATE_ENTITY_NAMES = ["openai", "anthropic", "spacex", "stripe", "databricks", "bytedance", "palantir technologies", "anduril", "figma", "canva", "discord", "notion", "scale ai", "hugging face", "mistral", "cohere", "perplexity"]
         is_private_entity = any(name in lower_input for name in PRIVATE_ENTITY_NAMES)
         is_deep_research = any(phrase in lower_input for phrase in [
@@ -249,7 +268,7 @@ class AtlasAgentService:
             "regulatory filing", "10-k", "10-q", "sec filing", "market sentiment",
             "industry trends", "risks", "moat", "competitive"
         ])
-        if is_private_entity or (is_deep_research and tickers):
+        if not is_productivity_query and (is_private_entity or (is_deep_research and tickers)):
             entity_label = user_input if is_private_entity else tickers[0]
             logger.info(f"Routing to DeepResearchEngine for: {entity_label}")
             response = await DeepResearchEngine.research_entity(user_input, llm)

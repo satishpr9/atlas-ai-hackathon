@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     model_name: str = "gpt-4o-mini"
     mongodb_uri: str = "mongodb://localhost:27017"
     database_name: str = "atlas_finance_db"
+    finnhub_api_key: Optional[str] = None
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
