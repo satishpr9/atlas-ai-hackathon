@@ -33,3 +33,5 @@ scratch_test_*.py
 test_aicredits*
 
 check_models*
+
+test_news*
