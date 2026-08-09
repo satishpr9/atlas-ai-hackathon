@@ -221,6 +221,8 @@ class MarketDataProvider:
                 "AAPL": "Hardware Ecosystem · Services · Apple Silicon",
                 "NVDA": "AI Accelerators · GPUs · CUDA Platform",
                 "TSLA": "EVs · Full Self-Driving · Energy Storage",
+                "RIVN": "Electric Trucks & SUVs · Commercial Delivery Vans · Autonomy",
+                "LCID": "Luxury Electric Sedans · Powertrain Technology",
                 "AMD": "Server Processors · AI Instinct Chips · GPUs",
                 "TSM": "Advanced Semiconductor Foundry · CoWoS Packaging"
             }

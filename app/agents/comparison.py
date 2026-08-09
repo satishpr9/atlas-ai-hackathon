@@ -15,16 +15,27 @@ BRAND_MAP = {
     "AAPL": "Apple",
     "NVDA": "NVIDIA",
     "TSLA": "Tesla",
+    "RIVN": "Rivian",
+    "LCID": "Lucid",
+    "NIO": "NIO",
+    "F": "Ford",
+    "GM": "General Motors",
     "AMD": "AMD",
     "TSM": "TSMC",
     "AMZN": "Amazon",
-    "META": "Meta"
+    "META": "Meta",
+    "NFLX": "Netflix",
+    "ORCL": "Oracle",
+    "CRM": "Salesforce",
+    "UBER": "Uber",
+    "COIN": "Coinbase"
 }
 
 class CompanyComparisonEngine:
     """
-    Dedicated high-precision comparison engine using clear brand names (e.g. Microsoft vs Google / Alphabet)
-    with strict entity-specific news segregation, explicit trailing P/E values, and standalone industry context.
+    Dedicated high-precision comparison engine using clear brand names (e.g. Tesla vs Rivian, Microsoft vs Google)
+    with strict entity-specific news segregation, explicit trailing P/E values, dynamic business divergence,
+    and institutional bottom line.
     """
     @classmethod
     async def compare(cls, ticker1: str, ticker2: str, llm) -> str:
@@ -63,13 +74,13 @@ class CompanyComparisonEngine:
         pe1_str = f"{q1.pe_ratio:.1f}x P/E" if q1.pe_ratio else "N/A P/E"
         pe2_str = f"{q2.pe_ratio:.1f}x P/E" if q2.pe_ratio else "N/A P/E"
         
-        biz1 = ov1.get('core_business', 'Technology & Commercial Operations')
-        biz2 = ov2.get('core_business', 'Technology & Commercial Operations')
+        biz1 = ov1.get('core_business', 'Technology & Operations')
+        biz2 = ov2.get('core_business', 'Technology & Operations')
 
         # 2. Strict News Section Assembly
         def build_company_news_line(articles: List[NewsArticle], brand: str) -> str:
             if not articles:
-                return f"{brand}\nNo major company-specific catalyst verified today."
+                return f"{brand}\n• No major breaking company-specific catalyst verified today."
             lines = [brand]
             for a in articles:
                 lines.append(f"• {a.title} ({a.publisher} | {a.relative_time})")
@@ -87,17 +98,19 @@ class CompanyComparisonEngine:
         now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
 
         prompt = (
-            f"You are Atlas, an elite institutional financial assistant communicating on Telegram.\n"
+            f"You are Atlas, an elite institutional financial intelligence partner communicating on Telegram.\n"
             f"CURRENT DATE: {CURRENT_DATE_STR} ({now_utc}).\n\n"
-            f"TASK: Output the comparison between {name1} ({q1.symbol}) and {name2} ({q2.symbol}) using the EXACT clean structure below.\n"
-            "Use clear recognizable brand names (Microsoft, Google / Alphabet).\n\n"
-            f"--- DATA LEDGER ---\n"
-            f"{name1} ({q1.symbol}): ${q1.price:,.2f} · {q1.market_cap_str} · {pe1_str} · Business: {biz1}\n"
-            f"{name2} ({q2.symbol}): ${q2.price:,.2f} · {q2.market_cap_str} · {pe2_str} · Business: {biz2}\n"
-            f"Delta: {larger_name} ({larger_ticker}) is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
+            f"TASK: Generate the comparative investment breakdown for {name1} ({q1.symbol}) vs {name2} ({q2.symbol}).\n\n"
+            f"--- VERIFIED DATA LEDGER ---\n"
+            f"{name1} ({q1.symbol}): ${q1.price:,.2f} · Market Cap: {q1.market_cap_str} · Trailing P/E: {pe1_str} · Business: {biz1}\n"
+            f"{name2} ({q2.symbol}): ${q2.price:,.2f} · Market Cap: {q2.market_cap_str} · Trailing P/E: {pe2_str} · Business: {biz2}\n"
+            f"Valuation Delta: {larger_name} ({larger_ticker}) is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
             f"Verified Company News:\n{company_news_1}\n\n{company_news_2}\n"
-            f"-------------------\n\n"
-            "EXACT OUTPUT TEMPLATE (Follow strictly):\n\n"
+            f"----------------------------\n\n"
+            "RULES:\n"
+            f"1. Tailor the '🌐 Industry', '💡 Bottom line', and 'Watch' items SPECIFICALLY to the actual business models of {name1} and {name2} (e.g. if EVs/automotive, discuss EV production scaling, delivery volumes, software monetization, and margin durability; if Cloud/AI, discuss cloud capex, enterprise adoption, and ad revenue).\n"
+            "2. Follow the EXACT Telegram template below without raw markdown '##' headers.\n\n"
+            "EXACT OUTPUT TEMPLATE:\n\n"
             f"📊 {name1} vs {name2}\n\n"
             "💰 Market\n"
             f"{name1} ({q1.symbol})  ${q1.price:,.2f} · {q1.market_cap_str} · {pe1_str}\n"
@@ -110,13 +123,13 @@ class CompanyComparisonEngine:
             f"{company_news_1}\n\n"
             f"{company_news_2}\n\n"
             "🌐 Industry\n"
-            "AI infrastructure scaling and enterprise cloud competition remain key themes for both companies.\n\n"
+            f"[1 concise sentence describing the shared macro/industry dynamic relevant to {name1} and {name2}.]\n\n"
             "💡 Bottom line\n"
-            f"{larger_name} is larger and currently trades at a {'lower' if q1.pe_ratio and q2.pe_ratio and min(q1.pe_ratio, q2.pe_ratio) == (q1.pe_ratio if larger_ticker == q1.symbol else q2.pe_ratio) else 'higher'} trailing P/E.\n\n"
-            f"{name1} → Stronger enterprise software & Azure exposure\n"
-            f"{name2} → Stronger Search & digital advertising exposure\n\n"
+            f"{larger_name} is larger by market capitalization.\n\n"
+            f"{name1} → [1 concise phrase describing core strategic focus / moat]\n"
+            f"{name2} → [1 concise phrase describing core strategic focus / moat]\n\n"
             "Watch:\n"
-            "Azure vs GCP growth · AI monetization · Ad margins\n\n"
+            f"[3 key operational metrics to track for {name1} and {name2}]\n\n"
             "📚 Sources\n"
             f"{sources_str}\n"
             f"Aug 9, 2026 · {now_utc}"

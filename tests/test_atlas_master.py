@@ -76,8 +76,16 @@ async def run_master_test_suite():
     assert "Morning Intelligence Briefing" in brief_res
     assert "Market Regime" in brief_res
     
+    # 7. Test Intent-Aware Company Overview ("Tell me about Apple")
+    print("\n--- TEST 7: Intent-Aware Company Overview (Tell me about Apple) ---")
+    overview_res = await atlas_agent.process_message(test_user_id, "Tell me about Apple")
+    print("--- APPLE OVERVIEW OUTPUT ---")
+    print(overview_res.encode("ascii", errors="replace").decode("ascii"))
+    assert "Apple" in overview_res and "AAPL" in overview_res
+    assert "Market" in overview_res and "Business" in overview_res and "Key Themes" in overview_res
+    
     print("\n==================================================")
-    print(">>> ALL 6 MASTER VALIDATION TESTS PASSED (10/10)!")
+    print(">>> ALL 7 MASTER VALIDATION TESTS PASSED (10/10)!")
     print("==================================================")
 
 if __name__ == "__main__":

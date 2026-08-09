@@ -10,6 +10,8 @@ from app.config import settings
 from app.agents.tools import financial_tools, update_user_facts
 from app.agents.market_movement import MarketMovementAnalyzer
 from app.agents.comparison import CompanyComparisonEngine
+from app.agents.overview import CompanyOverviewEngine
+from app.agents.research import DeepResearchEngine, PRIVATE_COMPANIES_LEDGER
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -45,16 +47,18 @@ class AgentState(TypedDict):
 def build_system_prompt(user_id: int, user_context: str) -> str:
     now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     return (
-        "You are Atlas, an elite institutional AI Financial Assistant designed for investors, analysts, founders, and finance professionals.\n"
+        "You are Atlas, an elite institutional AI Financial Analyst and Executive Intelligence Partner.\n"
         f"CURRENT CALENDAR DATE: {CURRENT_DATE_STR} (Current Time: {now_utc}). Year is 2026.\n\n"
-        "--- ONBOARDING & CONVERSATIONAL INTELLIGENCE ---\n"
-        "1. WELCOMING & NATURAL ONBOARDING: When a user introduces themselves or shares their background (role, watchlist, sectors, or preferred notification time):\n"
-        "   - Always use the 'update_user_facts' tool to store their role, interests, watchlist, or preferences.\n"
-        "   - Respond warmly and acknowledge their focus. Naturally mention that they can connect accounts (Google Drive for earnings reports/models, Google Calendar for earnings events) and receive daily morning briefings.\n"
-        "   - Keep it conversational—never present a rigid registration form.\n"
-        "2. ZERO BOT FLUFF ON ANALYSIS: When answering market analysis, comparisons, or quotes, use the ultra-clean Telegram format with intuitive icons (📊, 💰, 🏢, 📰, 💡, 📚). Never use raw markdown '##' headers.\n"
-        "3. GROUND TRUTH & ACCURACY: Never hallucinate unverified financial numbers, technical support levels, or causal relationships.\n"
-        "4. CONTINUOUS LEARNING: Over time, remember and adapt to the user's explicit preferences and workflow.\n\n"
+        "--- CONVERSATIONAL & RESEARCH PRINCIPLES ---\n"
+        "1. COMMUNICATE NATURALLY: Speak naturally as an experienced financial analyst and trusted executive partner. Users should never need commands or predefined keywords.\n"
+        "2. COMPREHENSIVE RESEARCH: Provide concise, high-signal research across public equities and private unicorns (OpenAI, Anthropic, SpaceX, Stripe, Databricks, ByteDance). Always explain WHY information matters for capital allocation, margin durability, and competitive moats.\n"
+        "3. INTENT-AWARE PRECISION: Provide direct, well-structured financial answers immediately without asking unnecessary stalling questions.\n"
+        "4. EXECUTIVE ASSISTANCE & SCHEDULING: When users request meeting scheduling, earnings reminders, or Google Drive/Sheet reviews (e.g. 'Schedule a team discussion on Apple earnings', 'Remind me before Nvidia call'):\n"
+        "   - Respond constructively as an executive assistant, confirming event details or parameters, and offering to sync with their connected calendar/drive.\n"
+        "5. MEMORY & TRACKING: When users ask to track stocks or set custom alerts (e.g. 'Track Tesla and notify me on SEC filings', 'Alert me if NVDA moves 5%'):\n"
+        "   - Use the 'update_user_facts' tool to store their watchlist and alert preferences, and confirm naturally.\n"
+        "6. ZERO BOT FLUFF ON ANALYSIS: Use the ultra-clean Telegram layout with intuitive icons (📊, 💰, 🏢, 📌, 📰, 💡, 📚). Never output raw markdown '##' headers.\n"
+        "7. GROUND TRUTH: Never invent unverified financial numbers, technical support levels, or unproven causal links.\n\n"
         f"--- USER PROFILE & MEMORY ---\n"
         f"Telegram ID: {user_id}\n"
         f"{user_context}\n"
@@ -93,8 +97,9 @@ workflow.add_edge("tools", "agent")
 
 app = workflow.compile()
 
-# Helper to identify tickers in text
+# Comprehensive Ticker Map
 KNOWN_TICKER_MAP = {
+    # Tech Giants
     "microsoft": "MSFT", "msft": "MSFT",
     "alphabet": "GOOGL", "google": "GOOGL", "googl": "GOOGL", "goog": "GOOGL",
     "apple": "AAPL", "aapl": "AAPL",
@@ -102,20 +107,54 @@ KNOWN_TICKER_MAP = {
     "tesla": "TSLA", "tsla": "TSLA",
     "amazon": "AMZN", "amzn": "AMZN",
     "meta": "META", "facebook": "META",
+    # EVs & Mobility
+    "rivian": "RIVN", "rivn": "RIVN",
+    "lucid": "LCID", "lcid": "LCID",
+    "nio": "NIO",
+    "ford": "F",
+    "gm": "GM", "general motors": "GM",
+    "uber": "UBER",
+    # Semiconductors
     "amd": "AMD",
     "tsmc": "TSM", "tsm": "TSM",
+    "intel": "INTC", "intc": "INTC",
+    "broadcom": "AVGO", "avgo": "AVGO",
+    "qualcomm": "QCOM", "qcom": "QCOM",
+    "arm": "ARM",
+    "asml": "ASML",
+    "micron": "MU", "mu": "MU",
+    "smci": "SMCI", "super micro": "SMCI",
+    # Enterprise & Cloud Software
     "palantir": "PLTR", "pltr": "PLTR",
-    "intel": "INTC", "intc": "INTC"
+    "oracle": "ORCL", "orcl": "ORCL",
+    "salesforce": "CRM", "crm": "CRM",
+    "adobe": "ADBE", "adbe": "ADBE",
+    "snowflake": "SNOW", "snow": "SNOW",
+    "crowdstrike": "CRWD", "crwd": "CRWD",
+    "servicenow": "NOW",
+    # Streaming & Crypto
+    "netflix": "NFLX", "nflx": "NFLX",
+    "spotify": "SPOT", "spot": "SPOT",
+    "coinbase": "COIN", "coin": "COIN"
 }
 
 def extract_tickers(text: str) -> List[str]:
     found = []
+    # 1. Match against known names & aliases
     words = re.findall(r'\b[A-Za-z0-9\.\-]+\b', text.lower())
     for w in words:
         if w in KNOWN_TICKER_MAP:
             sym = KNOWN_TICKER_MAP[w]
             if sym not in found:
                 found.append(sym)
+                
+    # 2. Check for explicit uppercase tickers in original text (e.g. RIVN, TSLA, AAPL)
+    raw_upper_words = re.findall(r'\b[A-Z]{1,5}\b', text)
+    for w in raw_upper_words:
+        if w not in ["A", "I", "AN", "THE", "AND", "OR", "VS", "IS", "ON", "IN", "AT", "TO", "FOR", "OF", "WITH", "BY"]:
+            if w not in found:
+                found.append(w)
+                
     return found
 
 class AtlasAgentService:
@@ -143,10 +182,10 @@ class AtlasAgentService:
             
         user_context = "\n".join(ctx_parts) if ctx_parts else "Standard Investor Profile"
         
-        lower_input = user_input.lower()
+        lower_input = user_input.lower().strip()
         tickers = extract_tickers(user_input)
         
-        # 0. Natural Morning & Evening Briefing Intents
+        # --- INTENT 0: Morning & Evening Briefings ---
         if any(phrase in lower_input for phrase in ["morning brief", "morning briefing", "daily brief", "daily briefing", "market overview", "market brief"]):
             from app.scheduler import generate_curated_morning_brief
             user_dict = {
@@ -173,8 +212,17 @@ class AtlasAgentService:
             await save_message(user_id, "assistant", wrap_res)
             return wrap_res
 
-        # Contextual resolution: If user asks "Compare with Google" and prior message was about MSFT
-        if len(tickers) == 1 and ("compare" in lower_input or "versus" in lower_input or " vs " in lower_input):
+        # --- INTENT 0.5: Private Unicorn Research (OpenAI, SpaceX, Stripe, Anthropic, Databricks, ByteDance) ---
+        for p_key in PRIVATE_COMPANIES_LEDGER.keys():
+            if p_key in lower_input:
+                logger.info(f"Routing to DeepResearchEngine for private company: {p_key}")
+                research_res = await DeepResearchEngine.research_entity(user_input, llm)
+                await save_message(user_id, "user", user_input)
+                await save_message(user_id, "assistant", research_res)
+                return research_res
+
+        # Contextual multi-turn comparison resolution ONLY when user says "compare it with X" or "compare with X"
+        if len(tickers) == 1 and any(phrase in lower_input for phrase in ["compare it with", "compare with", "versus it", "vs it", "now compare to", "compare against"]):
             for prev_msg in reversed(chat_history):
                 prev_tickers = extract_tickers(prev_msg.get("content", ""))
                 for pt in prev_tickers:
@@ -184,7 +232,7 @@ class AtlasAgentService:
                 if len(tickers) >= 2:
                     break
                     
-        # 1. Specialized Comparison Engine
+        # --- INTENT 1: Company Comparison ---
         if ("compare" in lower_input or "versus" in lower_input or " vs " in lower_input) and len(tickers) >= 2:
             logger.info(f"Routing to specialized CompanyComparisonEngine for {tickers[0]} and {tickers[1]}")
             response = await CompanyComparisonEngine.compare(tickers[0], tickers[1], llm)
@@ -192,15 +240,37 @@ class AtlasAgentService:
             await save_message(user_id, "assistant", response)
             return response
             
-        # 2. Specialized Catalyst / Movement Engine
+        # --- INTENT 2: Price Action & Catalyst Movement ---
         if any(phrase in lower_input for phrase in ["why is", "why did", "what moved", "catalyst", "moving today", "dropping today", "surging today"]) and tickers:
             logger.info(f"Routing to specialized MarketMovementAnalyzer for {tickers[0]}")
             response = await MarketMovementAnalyzer.analyze_movement(tickers[0], llm)
             await save_message(user_id, "user", user_input)
             await save_message(user_id, "assistant", response)
             return response
+
+        # --- INTENT 3: Deep Research / Financial Performance / Leadership / M&A / Filings ---
+        is_deep_research = any(phrase in lower_input for phrase in [
+            "deep dive", "research", "financial performance", "earnings summary", 
+            "leadership", "funding", "m&a", "merger", "acquisition", "regulatory filing", 
+            "10-k", "10-q", "sec filing", "market sentiment", "industry trends"
+        ])
+        if is_deep_research and tickers:
+            logger.info(f"Routing to DeepResearchEngine for {tickers[0]}")
+            response = await DeepResearchEngine.research_entity(user_input, llm)
+            await save_message(user_id, "user", user_input)
+            await save_message(user_id, "assistant", response)
+            return response
+
+        # --- INTENT 4: Company Overview / Research Profile ---
+        is_overview_prompt = any(phrase in lower_input for phrase in ["tell me about", "overview of", "what is", "profile of", "analyze", "summary of"]) or (len(tickers) == 1 and len(lower_input.split()) <= 3)
+        if is_overview_prompt and tickers:
+            logger.info(f"Routing to specialized CompanyOverviewEngine for {tickers[0]}")
+            response = await CompanyOverviewEngine.get_overview(tickers[0], llm)
+            await save_message(user_id, "user", user_input)
+            await save_message(user_id, "assistant", response)
+            return response
             
-        # 3. Standard Stateful LangGraph Engine (handles natural onboarding, questions, facts)
+        # --- INTENT 5: Standard Stateful LangGraph Engine (Q&A, Alert tracking, Calendar tasks) ---
         messages = []
         for msg in chat_history:
             if msg["role"] == "user":
