@@ -45,14 +45,16 @@ class AgentState(TypedDict):
 def build_system_prompt(user_id: int, user_context: str) -> str:
     now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     return (
-        "You are Atlas, an elite AI Financial Assistant designed for institutional investors, analysts, and tech founders.\n"
+        "You are Atlas, an elite institutional AI Financial Assistant designed for investors, analysts, founders, and finance professionals.\n"
         f"CURRENT CALENDAR DATE: {CURRENT_DATE_STR} (Current Time: {now_utc}). Year is 2026.\n\n"
-        "--- CORE PRINCIPLES ---\n"
-        "1. FORMATTING: Use the ultra-clean Telegram style with intuitive icons (📊, 💰, 🏢, 📰, 💡, 📚). Never output raw markdown '##' headers.\n"
-        "2. CONCISE & INSTITUTIONAL: Deliver high-signal financial analysis and STOP. Do not add conversational filler or unprompted questions.\n"
-        "3. ACCURACY & TIMESTAMPS: Every market metric or quote must include exact timestamp and verified source (Yahoo Finance).\n"
-        "4. MEMORY & CONTINUITY: Actively recognize user preferences, watchlists, and investment horizons. If the user mentions their role (e.g. 'Founder', 'Analyst'), use the update_user_facts tool to record it.\n"
-        "5. SEPARATION OF FACTS VS SENTIMENT: Ground-truth financial numbers must never be hallucinated.\n\n"
+        "--- ONBOARDING & CONVERSATIONAL INTELLIGENCE ---\n"
+        "1. WELCOMING & NATURAL ONBOARDING: When a user introduces themselves or shares their background (role, watchlist, sectors, or preferred notification time):\n"
+        "   - Always use the 'update_user_facts' tool to store their role, interests, watchlist, or preferences.\n"
+        "   - Respond warmly and acknowledge their focus. Naturally mention that they can connect accounts (Google Drive for earnings reports/models, Google Calendar for earnings events) and receive daily morning briefings.\n"
+        "   - Keep it conversational—never present a rigid registration form.\n"
+        "2. ZERO BOT FLUFF ON ANALYSIS: When answering market analysis, comparisons, or quotes, use the ultra-clean Telegram format with intuitive icons (📊, 💰, 🏢, 📰, 💡, 📚). Never use raw markdown '##' headers.\n"
+        "3. GROUND TRUTH & ACCURACY: Never hallucinate unverified financial numbers, technical support levels, or causal relationships.\n"
+        "4. CONTINUOUS LEARNING: Over time, remember and adapt to the user's explicit preferences and workflow.\n\n"
         f"--- USER PROFILE & MEMORY ---\n"
         f"Telegram ID: {user_id}\n"
         f"{user_context}\n"
@@ -131,13 +133,46 @@ class AtlasAgentService:
         if user.watch_list:
             ctx_parts.append(f"Active Watchlist: {', '.join(user.watch_list)}")
         if user.interests:
-            ctx_parts.append(f"Interests: {', '.join(user.interests)}")
+            ctx_parts.append(f"Focus Sectors: {', '.join(user.interests)}")
+        if user.preferred_insights:
+            ctx_parts.append(f"Preferred Insights: {', '.join(user.preferred_insights)}")
+        if user.briefing_time:
+            ctx_parts.append(f"Briefing Time: {user.briefing_time}")
+        if user.connected_accounts:
+            ctx_parts.append(f"Connected Integrations: {', '.join(user.connected_accounts)}")
             
         user_context = "\n".join(ctx_parts) if ctx_parts else "Standard Investor Profile"
         
         lower_input = user_input.lower()
         tickers = extract_tickers(user_input)
         
+        # 0. Natural Morning & Evening Briefing Intents
+        if any(phrase in lower_input for phrase in ["morning brief", "morning briefing", "daily brief", "daily briefing", "market overview", "market brief"]):
+            from app.scheduler import generate_curated_morning_brief
+            user_dict = {
+                "telegram_id": user_id,
+                "watch_list": user.watch_list or ["NVDA", "AAPL", "MSFT"],
+                "role": user.role,
+                "interests": user.interests
+            }
+            brief_res = await generate_curated_morning_brief(user_dict)
+            await save_message(user_id, "user", user_input)
+            await save_message(user_id, "assistant", brief_res)
+            return brief_res
+
+        if any(phrase in lower_input for phrase in ["evening wrap", "evening summary", "market close", "market summary", "end of day"]):
+            from app.scheduler import generate_curated_evening_wrap
+            user_dict = {
+                "telegram_id": user_id,
+                "watch_list": user.watch_list or ["NVDA", "AAPL", "MSFT"],
+                "role": user.role,
+                "interests": user.interests
+            }
+            wrap_res = await generate_curated_evening_wrap(user_dict)
+            await save_message(user_id, "user", user_input)
+            await save_message(user_id, "assistant", wrap_res)
+            return wrap_res
+
         # Contextual resolution: If user asks "Compare with Google" and prior message was about MSFT
         if len(tickers) == 1 and ("compare" in lower_input or "versus" in lower_input or " vs " in lower_input):
             for prev_msg in reversed(chat_history):
@@ -165,7 +200,7 @@ class AtlasAgentService:
             await save_message(user_id, "assistant", response)
             return response
             
-        # 3. Standard Stateful LangGraph Engine
+        # 3. Standard Stateful LangGraph Engine (handles natural onboarding, questions, facts)
         messages = []
         for msg in chat_history:
             if msg["role"] == "user":

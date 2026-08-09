@@ -23,7 +23,7 @@ def get_stock_quote(ticker: str) -> str:
         f"💰 {quote.symbol}  ${quote.price:,.2f} ({sign}{quote.percent_change:.2f}% today)\n"
         f"Market Cap: {quote.market_cap_str}{pe_str}\n"
         f"Volume: {quote.volume:,}\n\n"
-        f"📚 Yahoo Finance · Aug 9, 2026, {now_utc}"
+        f"📚 Yahoo Finance · Aug 9, 2026 · {now_utc}"
     )
 
 @tool
@@ -44,7 +44,7 @@ def compare_companies_data(tickers: List[str]) -> str:
             pe_str = f" ({quote.pe_ratio:.1f}x P/E)" if quote.pe_ratio else ""
             lines.append(f"{quote.symbol}  ${quote.price:,.2f} · {quote.market_cap_str}{pe_str}")
             
-    lines.append(f"\n📚 Yahoo Finance · Aug 9, 2026, {now_utc}")
+    lines.append(f"\n📚 Yahoo Finance · Aug 9, 2026 · {now_utc}")
     return "\n".join(lines)
 
 @tool
@@ -62,14 +62,22 @@ def get_company_news(ticker: str) -> str:
         tag = f"[{a.category}] " if a.category != "Company-Specific" else ""
         output.append(f"{ticker.upper()} → {tag}{a.title}\n  ({a.publisher} · {a.relative_time})")
         
-    output.append(f"\n📚 Sources: Yahoo Finance News · Aug 9, 2026, {now_utc}")
+    output.append(f"\n📚 Sources: Yahoo Finance News · Aug 9, 2026 · {now_utc}")
     return "\n".join(output)
 
 @tool
-async def update_user_facts(role: Optional[str] = None, interests: Optional[List[str]] = None, watch_list: Optional[List[str]] = None, user_id: Optional[int] = None) -> str:
+async def update_user_facts(
+    role: Optional[str] = None,
+    interests: Optional[List[str]] = None,
+    watch_list: Optional[List[str]] = None,
+    preferred_insights: Optional[List[str]] = None,
+    briefing_time: Optional[str] = None,
+    connected_accounts: Optional[List[str]] = None,
+    user_id: Optional[int] = None
+) -> str:
     """
-    Store ONLY explicitly stated facts about the user (e.g. role = 'Founder', watchlist = ['NVDA', 'TSM']).
-    Never combine or hallucinate roles (e.g. do not turn 'Founder' into 'Founder and Analyst').
+    Store explicitly stated facts and preferences about the user (e.g. role = 'Investor', watchlist = ['NVDA', 'TSM'], preferred_insights = ['earnings', 'SEC filings']).
+    Call this whenever the user shares their background, focus areas, or notification preferences.
     """
     if not user_id:
         return "Error: user_id required."
@@ -96,7 +104,26 @@ async def update_user_facts(role: Optional[str] = None, interests: Optional[List
                 current_watchlist.append(t)
         updates["watch_list"] = current_watchlist
 
+    if preferred_insights:
+        current_insights = list(user.preferred_insights) if user.preferred_insights else []
+        for ins in preferred_insights:
+            if ins not in current_insights:
+                current_insights.append(ins)
+        updates["preferred_insights"] = current_insights
+
+    if briefing_time:
+        updates["briefing_time"] = briefing_time
+
+    if connected_accounts:
+        current_accs = list(user.connected_accounts) if user.connected_accounts else []
+        for acc in connected_accounts:
+            if acc not in current_accs:
+                current_accs.append(acc)
+        updates["connected_accounts"] = current_accs
+
+    updates["onboarding_stage"] = "profiled"
+
     await update_user_profile(user_id, updates)
-    return f"Saved verified user preferences for {user_id}."
+    return f"Saved verified preferences for user {user_id}."
 
 financial_tools = [get_stock_quote, compare_companies_data, get_company_news, update_user_facts]
