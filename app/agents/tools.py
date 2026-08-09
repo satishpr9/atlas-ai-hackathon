@@ -3,71 +3,67 @@ from langchain_core.tools import tool
 from app.market_data import MarketDataProvider
 from datetime import datetime, timezone
 
-CURRENT_DATE_STR = "August 8, 2026"
+CURRENT_DATE_STR = "August 9, 2026"
 
 @tool
 def get_stock_quote(ticker: str) -> str:
     """
     Get the verified, real-time stock price, percentage change, and volume for a company.
-    Always includes the retrieval timestamp and source.
+    Formatted cleanly for Telegram with timestamps.
     """
     quote = MarketDataProvider.get_quote(ticker)
     if not quote:
-        return f"Unable to retrieve verified market quote for ticker '{ticker.upper()}'. Please ensure it is a valid US/Global symbol."
+        return f"Unable to retrieve verified market quote for '{ticker.upper()}'."
     
     sign = "+" if quote.percent_change >= 0 else ""
+    now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
+    pe_str = f" · {quote.pe_ratio:.1f}x P/E" if quote.pe_ratio else ""
+    
     return (
-        f"**{quote.symbol}** ({quote.name})\n"
-        f"Price: **${quote.price:,.2f}** ({sign}{quote.percent_change:.2f}%)\n"
-        f"Change: ${quote.change:.2f} | Volume: {quote.volume:,}\n"
-        f"Market Cap: **{quote.market_cap_str}**\n"
-        f"*Data as of: {quote.timestamp} | Source: {quote.source}*"
+        f"💰 {quote.symbol}  ${quote.price:,.2f} ({sign}{quote.percent_change:.2f}% today)\n"
+        f"Market Cap: {quote.market_cap_str}{pe_str}\n"
+        f"Volume: {quote.volume:,}\n\n"
+        f"📚 Yahoo Finance · Aug 9, 2026, {now_utc}"
     )
 
 @tool
 def compare_companies_data(tickers: List[str]) -> str:
     """
-    Compare multiple companies side by side on valuation, market cap, and recent performance.
-    Pass ONLY the list of tickers to compare (e.g. ['NVDA', 'AMD', 'TSM']).
+    Compare multiple companies on valuation, market cap, and recent performance.
     """
     if not tickers:
         return "No tickers provided for comparison."
         
-    results = []
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    
-    results.append(f"### Comparative Valuation (As of {timestamp})")
-    results.append("| Company | Price | Change (Today) | Market Cap | P/E Ratio |")
-    results.append("| :--- | :--- | :--- | :--- | :--- |")
+    lines = ["📊 Market Comparison\n"]
+    now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
     
     for symbol in tickers:
         quote = MarketDataProvider.get_quote(symbol)
         if quote:
             sign = "+" if quote.percent_change >= 0 else ""
-            pe_str = f"{quote.pe_ratio:.1f}x" if quote.pe_ratio else "N/A"
-            results.append(
-                f"| **{quote.symbol}** | ${quote.price:,.2f} | {sign}{quote.percent_change:.2f}% | **{quote.market_cap_str}** | {pe_str} |"
-            )
-        else:
-            results.append(f"| **{symbol.upper()}** | N/A | N/A | N/A | N/A |")
+            pe_str = f" ({quote.pe_ratio:.1f}x P/E)" if quote.pe_ratio else ""
+            lines.append(f"{quote.symbol}  ${quote.price:,.2f} · {quote.market_cap_str}{pe_str}")
             
-    results.append("\n*Source: MarketDataProvider (Yahoo Finance Live Feed)*")
-    return "\n".join(results)
+    lines.append(f"\n📚 Yahoo Finance · Aug 9, 2026, {now_utc}")
+    return "\n".join(lines)
 
 @tool
 def get_company_news(ticker: str) -> str:
     """
-    Get the latest verified news articles with publisher and publication timestamps.
+    Get the latest verified news articles with publisher and relative timestamps.
     """
-    articles = MarketDataProvider.get_recent_news(ticker, limit=4)
+    articles = MarketDataProvider.get_recent_news(ticker, limit=3)
     if not articles:
-        return f"No breaking news articles found for {ticker.upper()} in the last 24-48 hours."
+        return f"📰 Latest: No breaking headlines verified for {ticker.upper()} in the last 24h."
         
-    output = [f"**Latest Verified Headlines for {ticker.upper()}:**"]
-    for i, a in enumerate(articles, 1):
-        output.append(f"{i}. **{a.title}**\n   *Publisher: {a.publisher} | Published: {a.published_at}*")
+    now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
+    output = ["📰 Latest News\n"]
+    for a in articles:
+        tag = f"[{a.category}] " if a.category != "Company-Specific" else ""
+        output.append(f"{ticker.upper()} → {tag}{a.title}\n  ({a.publisher} · {a.relative_time})")
         
-    return "\n\n".join(output)
+    output.append(f"\n📚 Sources: Yahoo Finance News · Aug 9, 2026, {now_utc}")
+    return "\n".join(output)
 
 @tool
 async def update_user_facts(role: Optional[str] = None, interests: Optional[List[str]] = None, watch_list: Optional[List[str]] = None, user_id: Optional[int] = None) -> str:
