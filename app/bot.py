@@ -135,22 +135,20 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{doc_text}\n"
             f"--- END DOCUMENT TEXT ---\n\n"
             f"USER REQUEST: {user_instruction}\n\n"
-            "Provide a structured, institutional-quality analysis. Use this format:\n\n"
-            "📑 [Document Name] · Executive Summary\n\n"
-            "💰 Key Financials\n"
-            "[Revenue, Net Income, EPS, Margins — only if present in document. State 'Not found in document' if absent.]\n\n"
-            "📌 Primary Findings\n"
-            "[3-5 most important takeaways from the document]\n\n"
-            "⚠️ Risks & Watch Items\n"
-            "[Key risks, caveats, or red flags mentioned in the document]\n\n"
-            "💡 Bottom Line\n"
-            "[1-2 sentence strategic synthesis of what this document means]\n\n"
-            "Note: The user can ask follow-up questions about this document naturally."
+            "Generate a clean, high-signal, concise summary. Follow this EXACT compact template (keep each point to 1 punchy sentence, no fluff):\n\n"
+            f"📑 {document.file_name}\n\n"
+            "💰 Key Numbers\n"
+            "• [2-3 essential figures, e.g. Revenue, Net Profit, Margin — only if in document]\n\n"
+            "📌 Highlights\n"
+            "• [2-3 key strategic drivers / accomplishments]\n\n"
+            "⚠️ Key Risks\n"
+            "• [1-2 key operational/financial risks mentioned]\n\n"
+            "💡 Takeaway\n"
+            "[1 concise summary sentence]"
         )
         
         response = await atlas_agent.process_message(user_id, prompt)
-        reply = f"{response}\n\nYou can now ask me follow-up questions about this document — just type naturally."
-        await update.message.reply_text(reply)
+        await update.message.reply_text(response)
     except Exception as e:
         logger.error(f"Error parsing PDF: {e}")
         await update.message.reply_text(f"I encountered an issue analyzing '{document.file_name}'. Please ensure it contains readable text.")
@@ -262,13 +260,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Check if user has a document in context and the message seems like a follow-up
     doc_ctx = _DOCUMENT_CONTEXT.get(user_id)
-    if doc_ctx:
-        # Inject document context into the message for conversational Q&A
+    lower_msg = user_message.lower()
+    
+    is_external_query = any(phrase in lower_msg for phrase in [
+        "email", "calendar", "meeting", "morning brief", "evening wrap", "watchlist", "schedule"
+    ]) or (
+        any(phrase in lower_msg for phrase in ["stock price", "price of", "how much is", "why is", "tell me about", "compare", "versus", " vs "]) and not any(w in lower_msg for w in ["this", "document", "report", "pdf", "table", "above", "file"])
+    )
+    
+    if doc_ctx and not is_external_query:
         enriched_message = (
             f"[The user previously uploaded '{doc_ctx['name']}' ({doc_ctx['pages']} pages). "
             f"Here is the document text for reference:\n"
             f"--- DOCUMENT TEXT ---\n{doc_ctx['text'][:8000]}\n--- END ---]\n\n"
-            f"USER QUESTION: {user_message}"
+            f"USER QUESTION: {user_message}\n\n"
+            f"Instruction: Answer the user's question directly, accurately, and concisely based strictly on the document text. Keep your response brief, clear, and high-signal (1-3 sentences or short bullet points)."
         )
     else:
         enriched_message = user_message

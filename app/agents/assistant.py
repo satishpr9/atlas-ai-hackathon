@@ -156,6 +156,16 @@ KNOWN_TICKER_MAP = {
 
 def extract_tickers(text: str) -> List[str]:
     found = []
+    # If text is a long document injection, do NOT perform aggressive uppercase regex extraction
+    if "[DOCUMENT UPLOADED:" in text or "--- DOCUMENT TEXT" in text or "[The user previously uploaded" in text:
+        words = re.findall(r'\b[A-Za-z0-9\.\-]+\b', text.lower())
+        for w in words:
+            if w in KNOWN_TICKER_MAP:
+                sym = KNOWN_TICKER_MAP[w]
+                if sym not in found:
+                    found.append(sym)
+        return found
+
     # 1. Match against known names & aliases
     words = re.findall(r'\b[A-Za-z0-9\.\-]+\b', text.lower())
     for w in words:
@@ -166,9 +176,14 @@ def extract_tickers(text: str) -> List[str]:
                 
     # 2. Check for explicit uppercase tickers in original text (e.g. RIVN, TSLA, AAPL, RELIANCE.NS)
     # The regex allows optional exchange suffixes like .NS or .BO
+    stopwords = [
+        "A", "I", "AN", "THE", "AND", "OR", "VS", "IS", "ON", "IN", "AT", "TO", "FOR", "OF", "WITH", "BY",
+        "DOCUMENT", "UPLOADED", "TEXT", "END", "USER", "REQUEST", "QUESTION", "PDF", "REPORT", "EXECUTIVE",
+        "SUMMARY", "IMPORTANT", "FINANCIAL", "FY", "Q1", "Q2", "Q3", "Q4", "CEO", "CFO", "CTO", "AI", "EPS"
+    ]
     raw_upper_words = re.findall(r'\b[A-Z]{1,10}(?:\.[A-Z]{1,2})?\b', text)
     for w in raw_upper_words:
-        if w not in ["A", "I", "AN", "THE", "AND", "OR", "VS", "IS", "ON", "IN", "AT", "TO", "FOR", "OF", "WITH", "BY"]:
+        if w not in stopwords:
             if w not in found:
                 found.append(w)
                 
@@ -198,6 +213,22 @@ class AtlasAgentService:
             ctx_parts.append(f"Connected Integrations: {', '.join(user.connected_accounts)}")
             
         lower_input = user_input.lower().strip()
+
+        # --- SPECIAL CASE: Financial Document Intelligence ---
+        # When a document is uploaded or queried, answer directly from document context
+        if "[DOCUMENT UPLOADED:" in user_input or "--- DOCUMENT TEXT" in user_input or "[The user previously uploaded" in user_input:
+            logger.info("Routing to direct Document Intelligence processor.")
+            doc_response = await llm.ainvoke([HumanMessage(content=user_input)])
+            content = doc_response.content
+            if isinstance(content, list):
+                text_parts = [p["text"] if isinstance(p, dict) and "text" in p else str(p) for p in content]
+                final_res = "".join(text_parts)
+            else:
+                final_res = str(content)
+            await save_message(user_id, "user", user_input)
+            await save_message(user_id, "assistant", final_res)
+            return final_res
+
         tickers = extract_tickers(user_input)
         
         if tickers:
