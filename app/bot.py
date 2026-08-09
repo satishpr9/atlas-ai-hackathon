@@ -135,16 +135,19 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{doc_text}\n"
             f"--- END DOCUMENT TEXT ---\n\n"
             f"USER REQUEST: {user_instruction}\n\n"
-            "Generate a clean, high-signal, concise summary. Follow this EXACT compact template (keep each point to 1 punchy sentence, no fluff):\n\n"
-            f"📑 {document.file_name}\n\n"
-            "💰 Key Numbers\n"
-            "• [2-3 essential figures, e.g. Revenue, Net Profit, Margin — only if in document]\n\n"
-            "📌 Highlights\n"
-            "• [2-3 key strategic drivers / accomplishments]\n\n"
-            "⚠️ Key Risks\n"
-            "• [1-2 key operational/financial risks mentioned]\n\n"
-            "💡 Takeaway\n"
-            "[1 concise summary sentence]"
+            "EVIDENCE DISCIPLINE RULES:\n"
+            "1. Extract exact verified figures from the text. Calculate growth and margins accurately.\n"
+            "2. Distinguish FACT from INFERENCE. NEVER claim revenue growth proves 'strong demand' or margin expansion proves 'operational efficiency' unless explicitly established in the text.\n"
+            "3. Under '⚠️ Interpretation', state what the numbers show AND explicitly mention what the document does NOT establish (drivers, missing context).\n\n"
+            "Follow this EXACT clean layout:\n\n"
+            f"📄 {document.file_name}\n\n"
+            "💰 Financial Highlights\n"
+            "[Key metrics, periods, growth rates, and calculated margins]\n\n"
+            "💡 Key Takeaway\n"
+            "[Mathematical & factual observations only — 1-2 concise sentences]\n\n"
+            "⚠️ Interpretation\n"
+            "[State what the report shows, but explicitly note unverified drivers or limitations]\n\n"
+            f"Source: Uploaded {document.file_name}"
         )
         
         response = await atlas_agent.process_message(user_id, prompt)
@@ -217,14 +220,20 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "role": "user",
                     "content": [
                         {"type": "text", "text": (
-                            f"You are Atlas, an institutional financial analyst. {caption}\n\n"
-                            "Provide a structured analysis. Use clean formatting with icons — no markdown headers.\n\n"
-                            "📊 What This Shows\n"
-                            "[Describe what the image contains]\n\n"
-                            "💰 Key Data Points\n"
-                            "[Extract specific numbers, levels, or metrics visible]\n\n"
-                            "💡 Takeaway\n"
-                            "[1-2 sentence strategic insight]"
+                            f"You are Atlas, an institutional financial analyst with strict evidence discipline. {caption}\n\n"
+                            "EVIDENCE RULES:\n"
+                            "1. Perform exact mathematical calculations where relevant (e.g. Growth %, Margins = Net Profit / Revenue * 100).\n"
+                            "2. Distinguish FACT from INFERENCE. NEVER claim revenue growth proves 'strong demand' or margin expansion proves 'operational efficiency' unless explicitly established in the image.\n"
+                            "3. Under '⚠️ Interpretation', state what the numbers show AND explicitly mention what the image does NOT establish (drivers, missing context).\n\n"
+                            "Follow this EXACT clean layout:\n\n"
+                            "📄 [Company / Subject Title from Image]\n\n"
+                            "💰 Financial Highlights\n"
+                            "[Exact metrics, periods, growth rates, and calculated margins]\n\n"
+                            "💡 Key Takeaway\n"
+                            "[Mathematical & factual observations only — 1-2 concise sentences]\n\n"
+                            "⚠️ Interpretation\n"
+                            "[State what the report shows, but explicitly note unverified drivers or limitations]\n\n"
+                            "Source: Uploaded financial image"
                         )},
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_img}"}}
                     ]
