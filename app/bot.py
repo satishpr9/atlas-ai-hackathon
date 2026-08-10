@@ -68,11 +68,11 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pdf_reader = pypdf.PdfReader(io.BytesIO(file_byte_array))
         total_pages = len(pdf_reader.pages)
         text = ""
-        for page in pdf_reader.pages[:20]:  # Up to 20 pages for thorough extraction
+        for page in pdf_reader.pages:  # Process all pages to ensure no data is lost
             text += (page.extract_text() or "") + "\n"
             
         # Store for follow-up questions
-        doc_text = text[:12000]  # Keep a generous context window
+        doc_text = text[:150000]  # Allow up to ~35k tokens (well within 128k limit)
         _DOCUMENT_CONTEXT[user_id] = {
             "text": doc_text,
             "name": document.file_name,
@@ -81,7 +81,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Also persist in user profile for cross-session continuity
         await update_user_profile(user_id, {
-            "last_document_text": doc_text[:6000],
+            "last_document_text": doc_text[:50000], # Store a good chunk in DB
             "last_document_name": document.file_name
         })
         
@@ -93,14 +93,15 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         prompt = (
             f"[DOCUMENT UPLOADED: '{document.file_name}' ({total_pages} pages)]\n\n"
-            f"--- DOCUMENT TEXT (first {min(total_pages, 20)} pages) ---\n"
+            f"--- DOCUMENT TEXT ---\n"
             f"{doc_text}\n"
             f"--- END DOCUMENT TEXT ---\n\n"
             f"USER REQUEST: {user_instruction}\n\n"
             "EVIDENCE DISCIPLINE RULES:\n"
             "1. Extract exact verified figures from the text. Calculate growth and margins accurately.\n"
             "2. Distinguish FACT from INFERENCE. NEVER claim revenue growth proves 'strong demand' or margin expansion proves 'operational efficiency' unless explicitly established in the text.\n"
-            "3. Under '⚠️ Interpretation', state what the numbers show AND explicitly mention what the document does NOT establish (drivers, missing context).\n\n"
+            "3. Under '⚠️ Interpretation', state what the numbers show AND explicitly mention what the document does NOT establish (drivers, missing context).\n"
+            "4. If the provided data does not contain the answer, explicitly state 'I do not have verified data to determine this'. DO NOT guess or infer numbers.\n\n"
             "Follow this EXACT clean layout:\n\n"
             f"📄 {document.file_name}\n\n"
             "💰 Financial Highlights\n"
@@ -186,7 +187,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             "EVIDENCE RULES:\n"
                             "1. Perform exact mathematical calculations where relevant (e.g. Growth %, Margins = Net Profit / Revenue * 100).\n"
                             "2. Distinguish FACT from INFERENCE. NEVER claim revenue growth proves 'strong demand' or margin expansion proves 'operational efficiency' unless explicitly established in the image.\n"
-                            "3. Under '⚠️ Interpretation', state what the numbers show AND explicitly mention what the image does NOT establish (drivers, missing context).\n\n"
+                            "3. Under '⚠️ Interpretation', state what the numbers show AND explicitly mention what the image does NOT establish (drivers, missing context).\n"
+                            "4. If the provided data does not contain the answer, explicitly state 'I do not have verified data to determine this'. DO NOT guess or infer numbers.\n\n"
                             "Follow this EXACT clean layout:\n\n"
                             "📄 [Company / Subject Title from Image]\n\n"
                             "💰 Financial Highlights\n"
@@ -275,9 +277,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         enriched_message = (
             f"[The user previously uploaded '{doc_ctx['name']}' ({doc_ctx['pages']} pages). "
             f"Here is the document text for reference:\n"
-            f"--- DOCUMENT TEXT ---\n{doc_ctx['text'][:8000]}\n--- END ---]\n\n"
+            f"--- DOCUMENT TEXT ---\n{doc_ctx['text']}\n--- END ---]\n\n"
             f"USER QUESTION: {user_message}\n\n"
-            f"Instruction: Answer the user's question directly, accurately, and concisely based strictly on the document text. Keep your response brief, clear, and high-signal (1-3 sentences or short bullet points)."
+            f"Instruction: Answer the user's question directly, accurately, and concisely based strictly on the document text. Quote exactly from the text when citing numbers or facts. If the provided data does not contain the answer, explicitly state 'I do not have verified data to determine this'. DO NOT guess or infer numbers. Keep your response brief, clear, and high-signal (1-3 sentences or short bullet points)."
         )
     else:
         enriched_message = user_message

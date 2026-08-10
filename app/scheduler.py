@@ -6,100 +6,81 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-def _synthesize_catalyst_impact(symbol: str, title: str, summary: str = "") -> str:
-    """
-    Dynamically generates a concise institutional 'Why it matters' explanation.
-    """
-    title_lower = (title + " " + summary).lower()
-    if any(k in title_lower for k in ["earnings", "revenue", "profit", "quarter", "ebitda", "guidance", "beat", "miss"]):
-        return "Direct fundamental validation of quarterly revenue and margin durability."
-    elif any(k in title_lower for k in ["ai", "chips", "gpu", "datacenter", "cloud", "compute"]):
-        return "Hyperscaler data-center demand & AI infrastructure deployment velocity."
-    elif any(k in title_lower for k in ["sec", "antitrust", "investigation", "probe", "lawsuit", "regulat"]):
-        return "Structural regulatory scrutiny impacting operational freedom or margins."
-    elif any(k in title_lower for k in ["acquisition", "merger", "deal", "buyout", "partnership"]):
-        return "Strategic consolidation and TAM expansion into adjacent verticals."
-    elif any(k in title_lower for k in ["fed", "rate", "inflation", "cpi", "macro", "treasury"]):
-        return "Macro discount-rate dynamics and equity valuation multiple sensitivity."
-    return "Material sentiment driver impacting near-term market expectations."
-
 async def generate_curated_morning_brief(user: Dict[str, Any]) -> str:
     """
     Generates an ultra-clean, high-signal morning intelligence brief formatted natively for Telegram.
-    Explains WHY developments matter instead of forwarding raw headlines.
+    Uses a dynamic Event Intelligence Engine instead of hardcoded categories.
     """
+    from app.agents.assistant import llm
+    from langchain_core.messages import HumanMessage
+    import json
+    
     watch_list = user.get("watch_list", [])
-    role = user.get("role", "Investor")
     
-    # 1. Real-time market regime proxies
-    spy_quote = MarketDataProvider.get_quote("SPY")
-    qqq_quote = MarketDataProvider.get_quote("QQQ")
-    
-    spy_change = f"{spy_quote.percent_change:+.2f}%" if spy_quote else "N/A"
-    qqq_change = f"{qqq_quote.percent_change:+.2f}%" if qqq_quote else "N/A"
-    
-    avg_change = 0.0
-    if spy_quote and qqq_quote:
-        avg_change = (spy_quote.percent_change + qqq_quote.percent_change) / 2
-        
-    if avg_change > 0.2:
-        regime_icon = "🟢"
-        regime_title = "Risk-On"
-    elif avg_change < -0.2:
-        regime_icon = "🔴"
-        regime_title = "Risk-Off"
-    else:
-        regime_icon = "🟡"
-        regime_title = "Neutral / Consolidation"
-
-    # 2. Watchlist Catalysts & 'Why it matters'
-    watchlist_blocks = []
-    sources = ["Yahoo Finance"]
-    significant_movers = 0
-    
-    for symbol in watch_list[:5]:
-        q = MarketDataProvider.get_quote(symbol)
-        if q:
-            sign = "+" if q.percent_change >= 0 else ""
-            curr = "₹" if q.currency == "INR" or q.symbol.endswith((".NS", ".BO")) else ("€" if q.currency == "EUR" else ("£" if q.currency == "GBP" else "$"))
-            comp_news, _ = MarketDataProvider.get_company_news_classified(symbol, limit=1)
+    # 1. Aggregation
+    raw_events = []
+    for sym in ["SPY", "QQQ"] + watch_list[:8]:
+        news, _ = MarketDataProvider.get_company_news_classified(sym, limit=3)
+        for n in news:
+            raw_events.append({
+                "symbol": sym,
+                "title": n.title,
+                "summary": n.summary,
+                "source": n.publisher
+            })
             
-            if comp_news:
-                top_story = comp_news[0]
-                if top_story.publisher and top_story.publisher != "Financial Media":
-                    sources.append(top_story.publisher)
-                why_matters = _synthesize_catalyst_impact(q.symbol, top_story.title, top_story.summary)
-                watchlist_blocks.append(
-                    f"• {q.symbol}  {curr}{q.price:,.2f} ({sign}{q.percent_change:.2f}%)\n"
-                    f"  Headline: {top_story.title[:80]}...\n"
-                    f"  Why it matters: {why_matters}"
-                )
-                significant_movers += 1
-            else:
-                if abs(q.percent_change) >= 1.0:
-                    watchlist_blocks.append(f"• {q.symbol}  {curr}{q.price:,.2f} ({sign}{q.percent_change:.2f}%) → Noteworthy price momentum; no breaking company filings.")
-                    significant_movers += 1
-                else:
-                    watchlist_blocks.append(f"• {q.symbol}  {curr}{q.price:,.2f} ({sign}{q.percent_change:.2f}%) → Quiet session; range-bound consolidation.")
-                    
-    watchlist_text = "\n\n".join(watchlist_blocks) if watchlist_blocks else "• Tracking broader equity indices"
-    
-    clean_sources = list(set([s for s in sources if s != "Financial Media"]))
-    sources_str = " · ".join(clean_sources[:3])
-    date_str = datetime.now(timezone.utc).strftime("%b %d, %Y")
-    now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
+    # 2. Deduplication
+    seen_titles = set()
+    unique_events = []
+    for e in raw_events:
+        if e["title"] not in seen_titles:
+            seen_titles.add(e["title"])
+            unique_events.append(e)
+            
+    # 3. Verification & Scoring Layer (LLM Engine)
+    prompt = f"""
+You are the Atlas Event Intelligence Engine. 
+Your job is to process raw news events, discard noise, rank the most impactful events, and generate a strict summary.
 
+USER WATCHLIST: {watch_list}
+RAW EVENTS:
+{json.dumps(unique_events, indent=2)}
+
+INSTRUCTIONS:
+1. Evaluate all RAW EVENTS. Score their macro/market impact from 0-100.
+2. Discard any event with a score < 60 or that is low-quality filler.
+3. Select the TOP 3 to 5 most important events.
+4. If there are NO events > 60 impact, output EXACTLY the string: "NO_EVENTS" and nothing else.
+5. If there ARE valid events, format each event EXACTLY like this:
+
+[Number]. [Symbol]
+[Headline]
+Why it matters → [Answer exactly: What changed? Who is affected? Why could the market care? Keep it to 1-2 concise sentences. Do not use generic filler.]
+
+Output ONLY the formatted list of events (or NO_EVENTS). No intro, no outro.
+"""
+    
+    response = await llm.ainvoke([HumanMessage(content=prompt)])
+    engine_output = response.content.strip()
+    
+    if engine_output == "NO_EVENTS" or not engine_output:
+        events_str = "No major market-moving events detected for your watchlist right now."
+    else:
+        events_str = engine_output
+        
+    wl_str = " · ".join(watch_list[:5]) if watch_list else "No active tickers tracked"
+    date_str = datetime.now(timezone.utc).strftime("%b %d, %Y")
+    
     briefing = (
-        f"☀️ Morning Intelligence Briefing\n\n"
-        f"🚦 Market Regime\n"
-        f"{regime_icon} {regime_title} · S&P 500 ({spy_change}) · Nasdaq ({qqq_change})\n\n"
-        f"📋 Watchlist Catalysts\n\n"
-        f"{watchlist_text}\n\n"
-        f"💡 Key Focus\n"
-        f"• Central bank policy cues and global liquidity conditions\n"
-        f"• Tech/AI infrastructure capex cadence and margin durability\n\n"
-        f"📚 Sources\n"
-        f"{sources_str} · {date_str} · {now_utc}"
+        f"🌅 Market Intelligence\n\n"
+        f"🔥 Biggest Market Movers\n\n"
+        f"{events_str}\n\n"
+        f"👀 Your Watchlist\n"
+        f"{wl_str}\n\n"
+        f"💡 Bottom line\n"
+        f"Algorithms are processing these catalysts. Watch for volume confirmation at the open.\n\n"
+        f"Sources\n"
+        f"Yahoo Finance Real-time Feed · {date_str}"
     )
     
     return briefing
