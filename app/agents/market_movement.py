@@ -37,7 +37,9 @@ class MarketMovementAnalyzer:
 
         sign = "+" if quote.percent_change >= 0 else ""
         vol_str = f"{quote.volume / 1_000_000:.1f}M" if quote.volume >= 1_000_000 else f"{quote.volume:,}"
+        date_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
         now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
+        curr_sym = "₹" if quote.currency == "INR" or quote.symbol.endswith((".NS", ".BO")) else ("€" if quote.currency == "EUR" else ("£" if quote.currency == "GBP" else "$"))
         
         all_articles = comp_news + ind_news
         publishers = list(set([n.publisher for n in all_articles if n.publisher]))
@@ -46,12 +48,12 @@ class MarketMovementAnalyzer:
         
         prompt = (
             f"You are Atlas, an elite institutional financial intelligence partner.\n"
-            f"CURRENT DATE: {CURRENT_DATE_STR} ({now_utc}).\n\n"
+            f"CURRENT DATE: {date_str} ({now_utc}).\n\n"
             f"TASK: Analyze the price action and latest developments for {quote.symbol} ({quote.name}).\n\n"
             f"--- DATA LEDGER (Strict Ground Truth) ---\n"
-            f"Price: ${quote.price:,.2f} ({sign}{quote.percent_change:.2f}% today)\n"
+            f"Price: {curr_sym}{quote.price:,.2f} ({sign}{quote.percent_change:.2f}% today)\n"
             f"Volume: {vol_str}\n"
-            f"52-Week Range: ${quote.fifty_two_week_low or 0:.2f} - ${quote.fifty_two_week_high or 0:.2f}\n"
+            f"52-Week Range: {curr_sym}{quote.fifty_two_week_low or 0:.2f} - {curr_sym}{quote.fifty_two_week_high or 0:.2f}\n"
             f"Verified Recent Headlines:\n{news_block}\n"
             f"-----------------------------------------\n\n"
             "CRITICAL OPERATIONAL RULES:\n"
@@ -61,7 +63,7 @@ class MarketMovementAnalyzer:
             "REQUIRED OUTPUT STRUCTURE:\n\n"
             f"📈 {quote.symbol} Movement\n\n"
             "💰 Price Action\n"
-            f"{quote.symbol}  ${quote.price:,.2f} · {sign}{quote.percent_change:.2f}%\n"
+            f"{quote.symbol}  {curr_sym}{quote.price:,.2f} · {sign}{quote.percent_change:.2f}%\n"
             f"Volume: {vol_str}\n\n"
             "📰 Key Developments\n\n"
             f"{news_block}\n\n"
@@ -73,7 +75,7 @@ class MarketMovementAnalyzer:
             "Watch: Price momentum · [2-3 key business or macro factors to track]\n\n"
             "📚 Sources\n"
             f"{sources_str}\n"
-            f"Retrieved: Aug 9, 2026 · {now_utc}"
+            f"Retrieved: {date_str} · {now_utc}"
         )
         
         try:
@@ -93,8 +95,8 @@ class MarketMovementAnalyzer:
             return (
                 f"📈 {quote.symbol} Movement\n\n"
                 f"💰 Price Action\n"
-                f"{quote.symbol}  ${quote.price:,.2f} · {sign}{quote.percent_change:.2f}%\n"
+                f"{quote.symbol}  {curr_sym}{quote.price:,.2f} · {sign}{quote.percent_change:.2f}%\n"
                 f"Volume: {vol_str}\n\n"
                 "📚 Sources\n"
-                f"Yahoo Finance · Aug 9, 2026 · {now_utc}"
+                f"Yahoo Finance · {date_str} · {now_utc}"
             )

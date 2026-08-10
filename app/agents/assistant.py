@@ -14,11 +14,10 @@ from app.agents.overview import CompanyOverviewEngine
 from app.agents.price_engine import StockPriceEngine
 from app.agents.research import DeepResearchEngine
 from app.agents.productivity import productivity_tools
+from app.market_data import FinancialDataRouter, MarketDataProvider
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
-
-CURRENT_DATE_STR = "August 9, 2026"
 
 # --- AGENT SETUP ---
 if settings.openai_api_key:
@@ -48,23 +47,22 @@ class AgentState(TypedDict):
 
 def build_system_prompt(user_id: int, user_context: str) -> str:
     now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    current_date = datetime.now(timezone.utc).strftime("%B %d, %Y")
     return (
         "You are Atlas, an elite institutional AI Financial Analyst and Executive Intelligence Partner.\n"
-        f"CURRENT CALENDAR DATE: {CURRENT_DATE_STR} (Current Time: {now_utc}). Year is 2026.\n\n"
+        f"CURRENT DATE: {current_date} (Time: {now_utc}).\n\n"
         "--- LIVE DATA PRINCIPLES (CRITICAL) ---\n"
         "1. LIVE DATA FIRST: Always use your tools (get_stock_quote, get_market_overview, get_earnings_calendar, get_company_news) to retrieve LIVE data before answering. Never rely on training knowledge for prices, market caps, P/E ratios, or recent events.\n"
         "2. NEVER FABRICATE NUMBERS: If a tool returns no data, say so. Never invent stock prices, financial metrics, support/resistance levels, or analyst targets.\n"
         "3. UNCERTAINTY OVER CONFIDENCE: If you cannot verify information from live tools, clearly communicate uncertainty: 'Based on available data...' or 'Unable to verify current...' Never present unverified claims as facts.\n"
-        "4. SOURCE ATTRIBUTION: Every financial data point must cite its source (Yahoo Finance, specific news publisher, etc.).\n\n"
-        "--- CONVERSATIONAL PRINCIPLES ---\n"
-        "5. COMMUNICATE NATURALLY: Speak naturally as an experienced financial analyst. Users should never need commands or predefined keywords.\n"
-        "6. COMPREHENSIVE RESEARCH: Provide concise, high-signal research across public equities and private companies. Always explain WHY information matters.\n"
-        "7. INTENT-AWARE PRECISION: Provide direct, well-structured answers immediately without unnecessary stalling questions.\n"
-        "8. EXECUTIVE ASSISTANCE: When users request meeting scheduling, earnings reminders, or calendar tasks — respond constructively and confirm details using productivity tools (read_recent_emails, get_upcoming_meetings, schedule_meeting).\n"
-        "9. PRODUCTIVITY INTEGRATION: Proactively check emails or calendar when asked about 'my schedule', 'action items', or specific communications from a person/company. Synthesize this context with financial research.\n"
-        "10. MEMORY & TRACKING: When users ask to track stocks or set alerts — use 'update_user_facts' to store preferences, and confirm naturally.\n"
-        "11. CLEAN FORMATTING: Use ultra-clean Telegram layout with icons (📊, 💰, 🏢, 📌, 📰, 💡, 📚). Never output raw markdown '##' headers.\n\n"
-        f"--- USER PROFILE & MEMORY ---\n"
+        "4. SOURCE ATTRIBUTION: Every financial data point must cite its source (Yahoo Finance, Finnhub, specific news publisher, etc.).\n\n"
+        "--- CONVERSATIONAL & TIME-SAVING PRINCIPLES ---\n"
+        "5. COMMUNICATE NATURALLY: Speak naturally as an experienced financial analyst. Users should never need commands, slash shortcuts, or predefined keywords.\n"
+        "6. CONCISE & PURPOSE-DRIVEN: Respect user time. Deliver high-signal, minimum reliable information without AI fluff, conversational stalling, or repetitive disclaimers.\n"
+        "7. EXECUTIVE ASSISTANCE: Help users with meeting preparation, upcoming schedule checks, or actions using productivity tools.\n"
+        "8. DYNAMIC MEMORY: Remember the user's role, tracked stocks, and preferences seamlessly.\n"
+        "9. CLEAN FORMATTING: Use ultra-clean Telegram layout with clear icons (📊, 💰, 🏢, 📌, 📰, 💡, 📚). Never output raw markdown '##' headers.\n\n"
+        f"--- USER PROFILE & CONTEXT ---\n"
         f"Telegram ID: {user_id}\n"
         f"{user_context}\n"
         "------------------------------\n"
@@ -102,7 +100,7 @@ workflow.add_edge("tools", "agent")
 
 app = workflow.compile()
 
-# Comprehensive Ticker Map
+# Comprehensive baseline map for fast resolution
 KNOWN_TICKER_MAP = {
     # Tech Giants
     "microsoft": "MSFT", "msft": "MSFT",
@@ -151,12 +149,17 @@ KNOWN_TICKER_MAP = {
     "bharti airtel": "BHARTIARTL.NS", "airtel": "BHARTIARTL.NS",
     "icici": "ICICIBANK.NS", "icici bank": "ICICIBANK.NS",
     "zomato": "ZOMATO.NS",
-    "tata motors": "TATAMOTORS.NS"
+    "tata motors": "TATAMOTORS.NS",
+    "tata steel": "TATASTEEL.NS"
 }
 
 def extract_tickers(text: str) -> List[str]:
+    """
+    Extracts tickers dynamically using direct mapping, uppercase symbols regex,
+    and fallback symbol search for global equities.
+    """
     found = []
-    # If text is a long document injection, do NOT perform aggressive uppercase regex extraction
+    # If text is a long document injection, do NOT perform aggressive extraction
     if "[DOCUMENT UPLOADED:" in text or "--- DOCUMENT TEXT" in text or "[The user previously uploaded" in text:
         words = re.findall(r'\b[A-Za-z0-9\.\-]+\b', text.lower())
         for w in words:
@@ -167,19 +170,18 @@ def extract_tickers(text: str) -> List[str]:
         return found
 
     # 1. Match against known names & aliases
-    words = re.findall(r'\b[A-Za-z0-9\.\-]+\b', text.lower())
-    for w in words:
-        if w in KNOWN_TICKER_MAP:
-            sym = KNOWN_TICKER_MAP[w]
+    text_lower = text.lower()
+    for name, sym in KNOWN_TICKER_MAP.items():
+        if re.search(r'\b' + re.escape(name) + r'\b', text_lower):
             if sym not in found:
                 found.append(sym)
                 
     # 2. Check for explicit uppercase tickers in original text (e.g. RIVN, TSLA, AAPL, RELIANCE.NS)
-    # The regex allows optional exchange suffixes like .NS or .BO
     stopwords = [
         "A", "I", "AN", "THE", "AND", "OR", "VS", "IS", "ON", "IN", "AT", "TO", "FOR", "OF", "WITH", "BY",
         "DOCUMENT", "UPLOADED", "TEXT", "END", "USER", "REQUEST", "QUESTION", "PDF", "REPORT", "EXECUTIVE",
-        "SUMMARY", "IMPORTANT", "FINANCIAL", "FY", "Q1", "Q2", "Q3", "Q4", "CEO", "CFO", "CTO", "AI", "EPS"
+        "SUMMARY", "IMPORTANT", "FINANCIAL", "FY", "Q1", "Q2", "Q3", "Q4", "CEO", "CFO", "CTO", "AI", "EPS",
+        "USD", "INR", "EUR", "GBP", "ALL", "NEW", "TODAY", "YESTERDAY", "NOW", "CHECK", "WHAT", "HOW", "WHY"
     ]
     raw_upper_words = re.findall(r'\b[A-Z]{1,10}(?:\.[A-Z]{1,2})?\b', text)
     for w in raw_upper_words:
@@ -187,13 +189,20 @@ def extract_tickers(text: str) -> List[str]:
             if w not in found:
                 found.append(w)
                 
+    # 3. Dynamic lookup if still not found and user query appears company-specific
+    if not found and len(text.split()) <= 6:
+        clean_name = re.sub(r'\b(what is|the|stock|share|price|of|tell me about|how much is|cmp|rate|quote)\b', '', text_lower).strip()
+        if clean_name and len(clean_name) > 2:
+            resolved = FinancialDataRouter.search_symbol(clean_name)
+            if resolved and resolved not in found:
+                found.append(resolved)
+                
     return found
 
 class AtlasAgentService:
     @staticmethod
     async def process_message(user_id: int, user_input: str) -> str:
-        from app.services import get_or_create_user, save_message, get_recent_chat_history
-        
+        from app.services import get_or_create_user, save_message, get_recent_chat_history, update_user_profile
         user = await get_or_create_user(user_id)
         chat_history = await get_recent_chat_history(user_id, limit=6)
         
@@ -213,6 +222,14 @@ class AtlasAgentService:
             ctx_parts.append(f"Connected Integrations: {', '.join(user.connected_accounts)}")
             
         lower_input = user_input.lower().strip()
+
+        # --- DYNAMIC BACKGROUND LEARNING: Natural Role / Sector / Watchlist Extraction ---
+        if any(w in lower_input for w in ["i am a", "i'm a", "as an investor", "as a founder", "as an analyst"]):
+            for role_candidate in ["Investor", "Analyst", "Founder", "Trader", "Portfolio Manager", "Executive", "Student"]:
+                if role_candidate.lower() in lower_input:
+                    await update_user_profile(user_id, {"role": role_candidate})
+                    user.role = role_candidate
+                    break
 
         # --- SPECIAL CASE: Financial Document Intelligence ---
         # When a document is uploaded or queried, answer directly from document context
@@ -236,8 +253,40 @@ class AtlasAgentService:
             
         user_context = "\n".join(ctx_parts) if ctx_parts else "Standard Investor Profile"
         
+        # --- CONVERSATIONAL WATCHLIST MANAGEMENT (Zero command navigation) ---
+        if any(phrase in lower_input for phrase in ["add to my watchlist", "track this stock", "add to watchlist", "track stock"]):
+            if tickers:
+                current_wl = list(user.watch_list or [])
+                added = []
+                for t in tickers:
+                    if t not in current_wl:
+                        current_wl.append(t)
+                        added.append(t)
+                await update_user_profile(user_id, {"watch_list": current_wl})
+                added_str = ", ".join(added) if added else tickers[0]
+                response = f"✅ Added {added_str} to your watchlist.\nI will monitor updates for your morning briefings."
+                await save_message(user_id, "user", user_input)
+                await save_message(user_id, "assistant", response)
+                return response
+
+        if any(phrase in lower_input for phrase in ["my watchlist", "show my watchlist", "view watchlist", "what am i tracking"]):
+            wl = user.watch_list or ["NVDA", "AAPL", "MSFT"]
+            quotes_summary = []
+            for sym in wl:
+                q = MarketDataProvider.get_quote(sym)
+                if q:
+                    sign = "+" if q.percent_change >= 0 else ""
+                    curr = "₹" if q.currency == "INR" or q.symbol.endswith((".NS", ".BO")) else ("€" if q.currency == "EUR" else ("£" if q.currency == "GBP" else "$"))
+                    quotes_summary.append(f"• {q.symbol}: {curr}{q.price:,.2f} ({sign}{q.percent_change:.2f}%)")
+                else:
+                    quotes_summary.append(f"• {sym}: Tracking")
+            response = f"📋 Your Watchlist ({len(wl)} stocks)\n\n" + "\n".join(quotes_summary)
+            await save_message(user_id, "user", user_input)
+            await save_message(user_id, "assistant", response)
+            return response
+
         # --- INTENT 0: Morning & Evening Briefings ---
-        if any(phrase in lower_input for phrase in ["morning brief", "morning briefing", "daily brief", "daily briefing", "market overview", "market brief"]):
+        if any(phrase in lower_input for phrase in ["morning brief", "morning briefing", "daily brief", "daily briefing", "market overview", "market brief", "what should i know today", "what's happening today"]):
             from app.scheduler import generate_curated_morning_brief
             user_dict = {
                 "telegram_id": user_id,
@@ -250,7 +299,7 @@ class AtlasAgentService:
             await save_message(user_id, "assistant", brief_res)
             return brief_res
 
-        if any(phrase in lower_input for phrase in ["evening wrap", "evening summary", "market close", "market summary", "end of day"]):
+        if any(phrase in lower_input for phrase in ["evening wrap", "evening summary", "market close", "market summary", "end of day", "close wrap"]):
             from app.scheduler import generate_curated_evening_wrap
             user_dict = {
                 "telegram_id": user_id,
@@ -291,11 +340,12 @@ class AtlasAgentService:
             return response
 
         # --- INTENT 3: Deep Research (public OR private, any entity, any question) ---
-        # Triggers on research keywords OR mentions of known private companies
-        # BUT explicitly avoid hijacking productivity/email/calendar queries
-        is_productivity_query = any(word in lower_input for word in ["email", "emails", "calendar", "meeting", "schedule", "sync", "remind"])
+        is_productivity_query = any(word in lower_input for word in [
+            "email", "emails", "inbox", "calendar", "meeting", "schedule",
+            "sync", "remind", "to-do", "task"
+        ])
         
-        PRIVATE_ENTITY_NAMES = ["openai", "anthropic", "spacex", "stripe", "databricks", "bytedance", "palantir technologies", "anduril", "figma", "canva", "discord", "notion", "scale ai", "hugging face", "mistral", "cohere", "perplexity"]
+        PRIVATE_ENTITY_NAMES = ["openai", "anthropic", "spacex", "stripe", "databricks", "bytedance", "anduril", "figma", "canva", "discord", "notion", "scale ai", "hugging face", "mistral", "cohere", "perplexity"]
         is_private_entity = any(name in lower_input for name in PRIVATE_ENTITY_NAMES)
         is_deep_research = any(phrase in lower_input for phrase in [
             "deep dive", "research", "financial performance", "earnings summary",
@@ -303,9 +353,8 @@ class AtlasAgentService:
             "regulatory filing", "10-k", "10-q", "sec filing", "market sentiment",
             "industry trends", "risks", "moat", "competitive"
         ])
-        if not is_productivity_query and (is_private_entity or (is_deep_research and tickers)):
-            entity_label = user_input if is_private_entity else tickers[0]
-            logger.info(f"Routing to DeepResearchEngine for: {entity_label}")
+        if not is_productivity_query and (is_private_entity or (is_deep_research and (tickers or len(lower_input.split()) <= 5))):
+            logger.info(f"Routing to DeepResearchEngine for query: {user_input}")
             response = await DeepResearchEngine.research_entity(user_input, llm)
             await save_message(user_id, "user", user_input)
             await save_message(user_id, "assistant", response)
@@ -339,7 +388,7 @@ class AtlasAgentService:
             await save_message(user_id, "assistant", response)
             return response
             
-        # --- INTENT 5: Standard Stateful LangGraph Engine (Q&A, Alert tracking, Calendar tasks) ---
+        # --- INTENT 5: Standard Stateful LangGraph Engine (Conversational Intelligence) ---
         messages = []
         for msg in chat_history:
             if msg["role"] == "user":

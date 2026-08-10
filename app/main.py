@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
     db.connect()
     
     global bot_app
-    bot_app = await get_application()
+    bot_app = get_application()
     await bot_app.initialize()
     await bot_app.start()
     
@@ -42,9 +42,14 @@ async def telegram_webhook(request: Request):
     if bot_app is None:
         return {"status": "bot not initialized"}
         
-    data = await request.json()
-    update = Update.de_json(data, bot_app.bot)
-    await bot_app.process_update(update)
+    try:
+        data = await request.json()
+    except Exception:
+        return {"status": "bad request", "reason": "invalid or missing JSON body"}
+        
+    if data:
+        update = Update.de_json(data, bot_app.bot)
+        await bot_app.process_update(update)
     return {"status": "ok"}
 
 @app.get("/health")

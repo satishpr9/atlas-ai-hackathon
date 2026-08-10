@@ -501,10 +501,30 @@
         "role": "assistant",
         "content": "Here's the comparison of revenue between FY2025 and FY2024 for Nova Computing Systems Ltd.:\n\n- **FY2025 Revenue**: \u20b918,420 crore\n- **FY2024 Revenue**: \u20b914,790 crore\n- **Change**: +24.6%\n\nThis indicates a significant increase in revenue in FY2025 compared to FY2024.",
         "timestamp": "2026-08-09 12:28:22.270250+00:00"
+      },
+      {
+        "role": "user",
+        "content": "Hi",
+        "timestamp": "2026-08-10 08:17:02.930717+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Hello! How can I assist you today?",
+        "timestamp": "2026-08-10 08:17:03.042751+00:00"
+      },
+      {
+        "role": "user",
+        "content": "What are the biggest market-moving events I should know about you ?",
+        "timestamp": "2026-08-10 08:23:02.222715+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Here are the latest market-moving events and news that you should be aware of:\n\n\ud83d\udcca **Market Overview**\n- **S&P 500**: 7,757.64 (+0.62%)\n- **Nasdaq Composite**: 26,690.62 (+1.30%)\n- **Dow Jones**: 54,036.93 (+0.28%)\n- **Russell 2000**: 3,034.49 (+1.10%)\n- **VIX (Fear Index)**: 15.47 (+3.83%)\n\n\ud83d\udcda *Source: Yahoo Finance \u00b7 Aug 9, 2026 \u00b7 08:22 UTC*\n\n---\n\n\ud83d\udcf0 **Apple (AAPL) News**\n- **Apple\u2019s Foldable Phone, Whoop-Like Band, CXMT Memory Tests Buzz Keep Traders Hooked** (Yahoo \u00b7 3 hours ago)\n- **Apple CEO Tim Cook Just Passed His Successor a Mess** (Yahoo \u00b7 10 hours ago)\n- **Apple's Favorite Bullying Tactic Just Died in China. It Could Cost You Hundreds on Your Next iPhone.** (Yahoo \u00b7 11 hours ago)\n\n---\n\n\ud83d\udcf0 **Nvidia (NVDA) News**\n- **Nvidia, Eli Lilly, and Disney Show It\u2019s Time to Back the Top Dogs** (Yahoo \u00b7 3 hours ago)\n- **Mark Cuban Compared Nvidia to a Dot-Com-Era IPO Machine \"Funding Everyone and Anyone.\" Here's What That Means for AI Stocks.** (Yahoo \u00b7 7 hours ago)\n- **Marvell (MRVL) vs. AVGO and NVDA: Can AI Interconnect Growth Deliver the Earnings Its Premium Valuation Demands?** (Yahoo \u00b7 14 hours ago)\n\n---\n\n\ud83d\udcf0 **AMD News**\n- **AMD: CapEx Is Fueling The Next Leg** (SeekingAlpha \u00b7 7 hours ago)\n- **5-star analyst resets AMD stock price target** (Yahoo \u00b7 11 hours ago)\n- **Core Scientific (CORZ) Shareholders Rejected a $9B Sale. Does the AMD Deal Vindicate Them?** (Yahoo \u00b7 11 hours ago)\n\n---\n\n\ud83d\udcf0 **Taiwan Semiconductor (TSM) News**\n- **What's Going On With Taiwan Semiconductor Stock Friday?** (Benzinga \u00b7 2 days ago)\n- **Taiwan Semiconductor (NYSE:TSM) Combines High Growth Momentum with a Breakout Setup** (ChartMill \u00b7 2 days ago)\n\n---\n\nThese events and news articles could significantly impact market sentiment and stock performance, especially in the semiconductor and tech sectors. Let me know if you need further insights or analysis!",
+        "timestamp": "2026-08-10 08:23:02.246017+00:00"
       }
     ],
     "created_at": "2026-08-08 10:06:12.262000",
-    "updated_at": "2026-08-09T12:28:22.270250+00:00",
+    "updated_at": "2026-08-10T08:23:02.246017+00:00",
     "last_document_text": "NOVA COMPUTING SYSTEMS LTD.\n Synthetic Financial Report \u2014 FY2025 Annual Review\nIMPORTANT: This is a fictional company and fictional financial data created for AI testing. It is not investment advice and\nmust not be treated as real-world financial information.\n1. Executive Summary\nNova Computing Systems Ltd. (NCS) develops enterprise AI infrastructure, networking hardware, and cloud\noptimization software. For the year ended March 31, 2025, revenue increased 24.6% to \u25a018,420 crore. Operating\nprofit increased 31.4% to \u25a03,684 crore. Management attributed growth primarily to demand for AI accelerator\nclusters and data-center networking products.\nThe company ended the year with \u25a02,950 crore of cash and cash equivalents and \u25a01,120 crore of total\nborrowings. Free cash flow was \u25a01,740 crore, down from \u25a01,980 crore in FY2024 because of higher inventory and\ncapital expenditure.\n2. Company Profile\nHeadquarters: Bengaluru, India\nFounded: 2017\nCEO: Arjun Mehta\nEmployees: 8,420\nPrimary markets: India, United States, Singapore, Germany\n3. Financial Highlights\n\u25a0 crore\nFY2025\nFY2024\nChange\nRevenue\n18,420\n14,790\n+24.6%\nGross Profit\n7,184\n5,476\n+31.2%\nOperating Profit\n3,684\n2,804\n+31.4%\nNet Profit\n2,412\n1,792\n+34.6%\nOperating Cash Flow\n3,120\n2,640\n+18.2%\nFree Cash Flow\n1,740\n1,980\n-12.1%\nR&D Expense\n2,210\n1,690\n+30.8%\n4. Segment Performance\nSegment\nFY2025 Revenue\nGrowth\nOperating Margin\nAI Infrastructure\n\u25a09,760 cr\n38%\n24.5%\nCloud Optimization\n\u25a05,420 cr\n17%\n21.1%\nNetworking Hardware\n\u25a03,240 cr\n9%\n14.8%\n5. Balance Sheet Snapshot\nTotal assets were \u25a021,860 crore. Current assets were \u25a09,440 crore, including \u25a02,950 crore of cash and \u25a03,860\ncrore of inventory. Total liabilities were \u25a07,920 crore. Shareholders' equity was \u25a013,940 crore.\nLiquidity: Current ratio was 1.72x. Management stated that the company expects to meet its contractual\nobligations for at least the next twelve months using operating cash flow and available liquidity.\n\n6. Cash Flow and Capital Expenditure\nCapital expenditure rose to \u25a01,380 crore from \u25a0920 crore in FY2024. The increase was primarily related to a new\nAI systems assembly facility. Free cash flow declined despite higher operating cash flow because inventory\nincreased by \u25a01,020 crore during the year.\n7. Customers and Concentration\nThe five largest customers accounted for 41% of consolidated revenue. The largest customer represented 13% of\nrevenue. No single supplier accounted for more than 10% of total purchases.\n8. Outlook\nManagement expects FY2026 revenue growth in the range of 18%\u201323%, subject to semiconductor supply,\nenterprise AI spending, foreign-exchange movements, and customer deployment schedules. The company plans\nto spend approximately \u25a01,700 crore on capital expenditure in FY2026.\n9. Risk Factors\nKey risks include semiconductor supply constraints, customer concentration, rapid technology changes,\nforeign-exchange volatility, pricing pressure from larger competitors, cybersecurity incidents, delays in data-center\ndeployments, and higher-than-expected capital requirements.\n10. Management Commentary\nCEO Arjun Mehta said the company intends to prioritize sustainable free cash flow while continuing to invest in AI\ninfrastructure. The CFO noted that FY2025 working-capital requirements were unusually high because several\nlarge customers requested accelerated deliveries.\n\n11. AI Testing Questions\nUse this synthetic report to test document Q&A;, calculations, comparisons, retrieval, contradiction detection, and\ncitation behavior.\nBasic retrieval\n\u007f What was FY2025 revenue?\n\u007f Who is the CEO?\n\u007f How many employees does NCS have?\n\u007f What was FY2025 net profit?\nFinancial reasoning\n\u007f What was the net profit growth rate?\n\u007f Calculate the FY2025 net profit margin.\n\u007f What happened to free cash flow and why?\n\u007f What percentage of revenue came from AI Infrastructure?\nComparison\n\u007f Compare FY2025 and FY2024 revenue, operating profit, and free cash flow.\n\u007f Which segment grew fastest?\n\u007f Which segment has the highest operating margin?\nRisk analysis\n\u007f What are the three biggest financial risks mentioned?\n\u007f Why could inventory growth be a concern?\n\u007f How concentrated is the customer base?\nEvidence discipline\n\u007f Does the report state that NCS is publicly listed?\n\u007f Does it provide a stock price or market capitalization?\n\u007f Does it state that the company is profitable? Cite the relevant figures.\n\u007f If asked for information not contained in this report, explicitly say it is not available in the document.\n12. Deliberate Hallucination Traps\nThe report intentionally does NOT provide a stock ticker, share price, market capitalization, dividend yield, analyst\nratings, or valuation multiple. A correct AI assistant should not invent these values. It should state that the requested\ninformation is not contained in the uploaded document.\n\n",
     "last_document_name": "Atlas_AI_Dummy_Financial_Report.pdf"
   },
@@ -774,9 +794,126 @@
         "role": "assistant",
         "content": "\ud83d\udcc4 AlphaTech Solutions \u2014 FY2025\n\n\ud83d\udcb0 Financial Highlights\n- Revenue: \n  - FY2025: Rs 12,850 cr \n  - FY2024: Rs 10,830 cr \n  - Growth: 18.66%\n  \n- Net Profit: \n  - FY2025: Rs 1,620 cr \n  - FY2024: Rs 1,335 cr \n  - Growth: 21.43%\n\n- Net Profit Margin (FY2025): 12.6% \n- Net Profit Margin (FY2024): 12.3%\n\n\ud83d\udca1 Key Takeaway\nAlphaTech Solutions reported an 18.66% increase in revenue and a 21.43% increase in net profit from FY2024 to FY2025, with a slight improvement in net profit margin from 12.3% to 12.6%.\n\n\u26a0\ufe0f Interpretation\nThe document shows that AlphaTech Solutions experienced significant revenue and profit growth in FY2025 compared to FY2024. However, it does not establish the underlying drivers of this growth or provide context regarding market conditions or operational changes that may have influenced these results.\n\nSource: Uploaded AlphaTech_FY2025.pdf",
         "timestamp": "2026-08-09 12:26:07.441668+00:00"
+      },
+      {
+        "role": "user",
+        "content": "What is the stock price of Apple?",
+        "timestamp": "2026-08-10 08:48:12.408429+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "\ud83d\udcc8 Apple (AAPL)\n\n$313.33 \u00b7 +0.29% today\n\nMarket cap: $4.57T\n\nAs of Aug 9, 2026 \u00b7 08:48 UTC\nSource: Finnhub (Real-time)\n\nWant the latest Apple news or an explanation of today's move?",
+        "timestamp": "2026-08-10 08:48:12.593492+00:00"
       }
     ],
     "created_at": "2026-08-09 10:13:27.636806+00:00",
-    "updated_at": "2026-08-09T12:26:07.441668+00:00"
+    "updated_at": "2026-08-10T08:48:12.593492+00:00"
+  },
+  "88888888": {
+    "telegram_id": 88888888,
+    "first_name": "TestExecutive",
+    "username": null,
+    "role": null,
+    "interests": [],
+    "watch_list": [],
+    "preferred_insights": [],
+    "domains_of_interest": [
+      "Finance",
+      "Technology"
+    ],
+    "briefing_time": "08:30 UTC",
+    "connected_accounts": [],
+    "onboarding_stage": "initial",
+    "google_auth": null,
+    "context_summary": "",
+    "last_document_text": "",
+    "last_document_name": "",
+    "chat_history": [
+      {
+        "role": "user",
+        "content": "Can you check my emails for notes from Sarah?",
+        "timestamp": "2026-08-10 08:32:26.755445+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "It looks like your Google Workspace is not connected, so I can't check your emails for notes from Sarah. You can connect your Google account by following this [link](https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=dummy_client_id.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fauth%2Fgoogle%2Fcallback&scope=openid+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.send+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fspreadsheets&state=atlas_88888888_1786350742&code_challenge=t52dKxN4XeSwa-DLZzTv8edRPldvSqsVbgus6Pm6fT8&code_challenge_method=S256&access_type=offline&include_granted_scopes=true&prompt=consent) or by typing `/connect` in the chat.",
+        "timestamp": "2026-08-10 08:32:26.773510+00:00"
+      },
+      {
+        "role": "user",
+        "content": "Can you check my emails for notes from Sarah?",
+        "timestamp": "2026-08-10 08:33:02.575718+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "I still can't access your emails because your Google Workspace is not connected. Please connect your Google account using this [link](https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=dummy_client_id.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fauth%2Fgoogle%2Fcallback&scope=openid+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.send+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.readonly+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fspreadsheets&state=atlas_88888888_1786350777&code_challenge=A7cwzJXBsPqcMbPJ-GzWcSRAXb2Aez9VhlqOoen-wnI&code_challenge_method=S256&access_type=offline&include_granted_scopes=true&prompt=consent) or by typing `/connect` in the chat.",
+        "timestamp": "2026-08-10 08:33:02.606657+00:00"
+      }
+    ],
+    "created_at": "2026-08-10 08:32:19.202060+00:00",
+    "updated_at": "2026-08-10T08:33:02.606657+00:00"
+  },
+  "101": {
+    "telegram_id": 101,
+    "first_name": null,
+    "username": null,
+    "role": null,
+    "interests": [],
+    "watch_list": [],
+    "preferred_insights": [],
+    "domains_of_interest": [
+      "Finance",
+      "Technology"
+    ],
+    "briefing_time": "08:30 UTC",
+    "connected_accounts": [],
+    "onboarding_stage": "initial",
+    "context_summary": "",
+    "last_document_text": "",
+    "last_document_name": "",
+    "chat_history": [
+      {
+        "role": "user",
+        "content": "What is the stock price of Nvidia?",
+        "timestamp": "2026-08-10 08:56:40.190641+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "\ud83d\udcc8 NVIDIA (NVDA)\n\n$223.96 \u00b7 +2.27% today\n\nMarket cap: $5.42T\n\nAs of Aug 10, 2026 \u00b7 08:56 UTC\nSource: Finnhub (Real-time)\n\nWant the latest NVIDIA news or an explanation of today's move?",
+        "timestamp": "2026-08-10 08:56:40.210075+00:00"
+      },
+      {
+        "role": "user",
+        "content": "Add NVDA and MSFT to my watchlist",
+        "timestamp": "2026-08-10 08:56:41.859026+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "\ud83d\udccb Your Watchlist (3 stocks)\n\n\u2022 NVDA: $223.96 (+2.27%)\n\u2022 AAPL: $313.33 (+0.29%)\n\u2022 MSFT: $499.99 (+0.03%)",
+        "timestamp": "2026-08-10 08:56:41.870313+00:00"
+      },
+      {
+        "role": "user",
+        "content": "What should I know today?",
+        "timestamp": "2026-08-10 08:56:49.220308+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "\u2600\ufe0f Morning Intelligence Briefing\n\n\ud83d\udea6 Market Regime\n\ud83d\udfe2 Risk-On \u00b7 S&P 500 (+0.61%) \u00b7 Nasdaq (+1.17%)\n\n\ud83d\udccb Watchlist Catalysts\n\n\u2022 NVDA  $223.96 (+2.27%)\n  Headline: Marvell (MRVL) vs. AVGO and NVDA: Can AI Interconnect Growth Deliver the Earning...\n  Why it matters: Direct fundamental validation of quarterly revenue and margin durability.\n\n\u2022 AAPL  $313.33 (+0.29%)\n  Headline: Apple (AAPL) Q3 2026 Earnings Call Transcript...\n  Why it matters: Direct fundamental validation of quarterly revenue and margin durability.\n\n\u2022 MSFT  $499.99 (+0.03%)\n  Headline: Microsoft (MSFT) Q4 2026 Earnings Call Transcript...\n  Why it matters: Direct fundamental validation of quarterly revenue and margin durability.\n\n\ud83d\udca1 Key Focus\n\u2022 Central bank policy cues and global liquidity conditions\n\u2022 Tech/AI infrastructure capex cadence and margin durability\n\n\ud83d\udcda Sources\nYahoo Finance \u00b7 Yahoo \u00b7 Aug 10, 2026 \u00b7 08:56 UTC",
+        "timestamp": "2026-08-10 08:56:49.231453+00:00"
+      },
+      {
+        "role": "user",
+        "content": "Compare Tesla vs Rivian",
+        "timestamp": "2026-08-10 08:56:57.073974+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "\ud83d\udcca Tesla vs Rivian\n\n\ud83d\udcb0 Market  \nTesla (TSLA)  $328.58 \u00b7 $1.30T \u00b7 N/A P/E  \nRivian (RIVN)  $16.00 \u00b7 $23.17B \u00b7 N/A P/E  \n\nTesla is ~$1.27T larger (+5502.0%).\n\n\ud83c\udfe2 Business  \nTesla \u2192 Automobiles  \nRivian \u2192 Automobiles  \n\n\ud83d\udcf0 Latest  \n\nTesla  \n\u2022 Tesla (TSLA) Rumors Swirl Over China Split Ahead Of Possible Merger (Yahoo | 1 hour ago)  \n\u2022 TSLA Stock Eyes Weekly Comeback As Elon Musk Touts Terafab\u2019s Colossal Scale \u2014 Analyst Flags A Big Intel Question Mark (Yahoo | 3 days ago)  \n\nRivian  \n\u2022 No major breaking company-specific catalyst verified today.\n\n\ud83c\udf10 Industry  \nBoth Tesla and Rivian operate in the rapidly evolving electric vehicle market, which is characterized by increasing competition and a push for sustainable transportation solutions.\n\n\ud83d\udca1 Bottom line  \nTesla is larger by market capitalization.  \n\nTesla \u2192 Dominant player with extensive production capabilities and a strong brand loyalty.  \nRivian \u2192 Focused on niche electric trucks and SUVs with an emphasis on adventure and sustainability.\n\nWatch:  \n1. Production and delivery volumes for both companies.  \n2. Developments in battery technology and cost efficiencies.  \n3. Market share changes in the EV segment.\n\n\ud83d\udcda Sources  \nYahoo Finance \u00b7 SeekingAlpha \u00b7 Benzinga  \nAugust 10, 2026 \u00b7 08:56 UTC",
+        "timestamp": "2026-08-10 08:56:57.090257+00:00"
+      }
+    ],
+    "created_at": "2026-08-10 08:56:38.074674+00:00",
+    "updated_at": "2026-08-10T08:56:57.090257+00:00"
   }
 }

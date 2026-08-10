@@ -95,15 +95,19 @@ class CompanyComparisonEngine:
         sources_list = ["Yahoo Finance"] + [p for p in publishers if p != "Financial Media"]
         sources_str = " · ".join(sources_list[:3])
         
+        curr1 = "₹" if q1.currency == "INR" or q1.symbol.endswith((".NS", ".BO")) else ("€" if q1.currency == "EUR" else ("£" if q1.currency == "GBP" else "$"))
+        curr2 = "₹" if q2.currency == "INR" or q2.symbol.endswith((".NS", ".BO")) else ("€" if q2.currency == "EUR" else ("£" if q2.currency == "GBP" else "$"))
+        
+        date_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
         now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
 
         prompt = (
             f"You are Atlas, an elite institutional financial intelligence partner communicating on Telegram.\n"
-            f"CURRENT DATE: {CURRENT_DATE_STR} ({now_utc}).\n\n"
+            f"CURRENT DATE: {date_str} ({now_utc}).\n\n"
             f"TASK: Generate the comparative investment breakdown for {name1} ({q1.symbol}) vs {name2} ({q2.symbol}).\n\n"
             f"--- VERIFIED DATA LEDGER ---\n"
-            f"{name1} ({q1.symbol}): ${q1.price:,.2f} · Market Cap: {q1.market_cap_str} · Trailing P/E: {pe1_str} · Business: {biz1}\n"
-            f"{name2} ({q2.symbol}): ${q2.price:,.2f} · Market Cap: {q2.market_cap_str} · Trailing P/E: {pe2_str} · Business: {biz2}\n"
+            f"{name1} ({q1.symbol}): {curr1}{q1.price:,.2f} · Market Cap: {q1.market_cap_str} · Trailing P/E: {pe1_str} · Business: {biz1}\n"
+            f"{name2} ({q2.symbol}): {curr2}{q2.price:,.2f} · Market Cap: {q2.market_cap_str} · Trailing P/E: {pe2_str} · Business: {biz2}\n"
             f"Valuation Delta: {larger_name} ({larger_ticker}) is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
             f"Verified Company News:\n{company_news_1}\n\n{company_news_2}\n"
             f"----------------------------\n\n"
@@ -113,8 +117,8 @@ class CompanyComparisonEngine:
             "EXACT OUTPUT TEMPLATE:\n\n"
             f"📊 {name1} vs {name2}\n\n"
             "💰 Market\n"
-            f"{name1} ({q1.symbol})  ${q1.price:,.2f} · {q1.market_cap_str} · {pe1_str}\n"
-            f"{name2} ({q2.symbol})  ${q2.price:,.2f} · {q2.market_cap_str} · {pe2_str}\n\n"
+            f"{name1} ({q1.symbol})  {curr1}{q1.price:,.2f} · {q1.market_cap_str} · {pe1_str}\n"
+            f"{name2} ({q2.symbol})  {curr2}{q2.price:,.2f} · {q2.market_cap_str} · {pe2_str}\n\n"
             f"{larger_name} is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
             "🏢 Business\n"
             f"{name1} → {biz1}\n"
@@ -132,7 +136,7 @@ class CompanyComparisonEngine:
             f"[3 key operational metrics to track for {name1} and {name2}]\n\n"
             "📚 Sources\n"
             f"{sources_str}\n"
-            f"Aug 9, 2026 · {now_utc}"
+            f"{date_str} · {now_utc}"
         )
         
         try:
@@ -152,12 +156,12 @@ class CompanyComparisonEngine:
             return (
                 f"📊 {name1} vs {name2}\n\n"
                 f"💰 Market\n"
-                f"{name1} ({q1.symbol})  ${q1.price:,.2f} · {q1.market_cap_str} · {pe1_str}\n"
-                f"{name2} ({q2.symbol})  ${q2.price:,.2f} · {q2.market_cap_str} · {pe2_str}\n\n"
+                f"{name1} ({q1.symbol})  {curr1}{q1.price:,.2f} · {q1.market_cap_str} · {pe1_str}\n"
+                f"{name2} ({q2.symbol})  {curr2}{q2.price:,.2f} · {q2.market_cap_str} · {pe2_str}\n\n"
                 f"{larger_name} is ~{diff_str} larger (+{pct_larger:.1f}%).\n\n"
                 f"🏢 Business\n"
                 f"{name1} → {biz1}\n"
                 f"{name2} → {biz2}\n\n"
                 f"📚 Sources\n"
-                f"Yahoo Finance · Aug 9, 2026 · {now_utc}"
+                f"Yahoo Finance · {date_str} · {now_utc}"
             )

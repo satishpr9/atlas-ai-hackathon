@@ -54,6 +54,7 @@ class DeepResearchEngine:
     async def research_entity(cls, query: str, llm) -> str:
         """Route to public or general research based on whether we can get live market data."""
         clean_q = query.lower().strip()
+        date_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
         now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
         
         # Try to extract a public ticker
@@ -67,20 +68,20 @@ class DeepResearchEngine:
                 # Public company with live data
                 overview = MarketDataProvider.get_company_overview(sym)
                 comp_news, ind_news = MarketDataProvider.get_company_news_classified(sym, limit=3)
-                return await cls._synthesize_public_deep_dive(sym, quote, overview, comp_news, ind_news, query, llm, now_utc)
+                return await cls._synthesize_public_deep_dive(sym, quote, overview, comp_news, ind_news, query, llm, now_utc, date_str)
 
         # No live market data → treat as private/general research
-        return await cls._synthesize_general_research(query, llm, now_utc)
+        return await cls._synthesize_general_research(query, llm, now_utc, date_str)
 
     @staticmethod
-    async def _synthesize_general_research(query: str, llm, now_utc: str) -> str:
+    async def _synthesize_general_research(query: str, llm, now_utc: str, date_str: str) -> str:
         """
         Fully dynamic research synthesis for private companies, sectors, or any entity
         without live market data. Uses strict epistemic calibration.
         """
         prompt = (
             f"You are Atlas, an elite institutional financial intelligence partner.\n"
-            f"CURRENT DATE: {CURRENT_DATE_STR} ({now_utc}).\n\n"
+            f"CURRENT DATE: {date_str} ({now_utc}).\n\n"
             f"USER RESEARCH QUERY: \"{query}\"\n\n"
             f"{EPISTEMIC_CALIBRATION_RULES}\n\n"
             "TASK: Produce a comprehensive, epistemically honest research brief for this query.\n\n"
@@ -104,7 +105,7 @@ class DeepResearchEngine:
             "[For any entity: note which claims are Estimated vs Known.]\n\n"
             "📚 Sources\n"
             "[List specific sources that support your claims. Do NOT list generic database names.]\n"
-            f"Retrieved: Aug 9, 2026 · {now_utc}\n\n"
+            f"Retrieved: {date_str} · {now_utc}\n\n"
             "REMEMBER: It is far better to say 'Not publicly disclosed' than to state an unverified claim as fact."
         )
         
@@ -128,13 +129,15 @@ class DeepResearchEngine:
         ind_news: List[Any],
         user_query: str,
         llm: Any,
-        now_utc: str
+        now_utc: str,
+        date_str: str
     ) -> str:
         """
         Public company deep dive with verified live data as ground truth,
         plus epistemic calibration for any forward-looking or analyst-derived claims.
         """
         sign = "+" if quote.percent_change >= 0 else ""
+        curr = "₹" if quote.currency == "INR" or quote.symbol.endswith((".NS", ".BO")) else ("€" if quote.currency == "EUR" else ("£" if quote.currency == "GBP" else "$"))
         pe_str = f"{quote.pe_ratio:.1f}x" if quote.pe_ratio else "N/A"
         fwd_pe_str = f"{quote.forward_pe:.1f}x" if quote.forward_pe else "N/A"
         vol_str = f"{quote.volume / 1_000_000:.1f}M" if quote.volume >= 1_000_000 else f"{quote.volume:,}"
@@ -153,12 +156,12 @@ class DeepResearchEngine:
         
         prompt = (
             f"You are Atlas, an elite institutional financial intelligence partner.\n"
-            f"CURRENT DATE: {CURRENT_DATE_STR} ({now_utc}).\n\n"
+            f"CURRENT DATE: {date_str} ({now_utc}).\n\n"
             f"USER RESEARCH QUERY: \"{user_query}\"\n\n"
             f"{EPISTEMIC_CALIBRATION_RULES}\n\n"
-            f"--- VERIFIED GROUND TRUTH (from Yahoo Finance API — Known confidence) ---\n"
+            f"--- VERIFIED GROUND TRUTH (Known confidence) ---\n"
             f"Company: {quote.name} ({sym})\n"
-            f"Price: ${quote.price:,.2f} ({sign}{quote.percent_change:.2f}%)\n"
+            f"Price: {curr}{quote.price:,.2f} ({sign}{quote.percent_change:.2f}%)\n"
             f"Market Cap: {quote.market_cap_str}\n"
             f"Trailing P/E: {pe_str}\n"
             f"Forward P/E: {fwd_pe_str}\n"
@@ -172,7 +175,7 @@ class DeepResearchEngine:
             "FORMAT:\n\n"
             f"🏢 {quote.name} ({sym}) · Research Brief\n\n"
             "💰 Financial Snapshot (Known)\n"
-            f"${quote.price:,.2f} · {sign}{quote.percent_change:.2f}%\n"
+            f"{curr}{quote.price:,.2f} · {sign}{quote.percent_change:.2f}%\n"
             f"Market Cap: {quote.market_cap_str}\n"
             f"Trailing P/E: {pe_str} · Forward P/E: {fwd_pe_str}\n"
             f"Volume: {vol_str}\n\n"
@@ -186,9 +189,9 @@ class DeepResearchEngine:
             "[Address the user's specific research focus. Explain WHY each factor matters.]\n"
             "[Separate Known facts from Estimated/Inferred analysis.]\n\n"
             "📚 Sources\n"
-            f"Yahoo Finance (live market data)\n"
+            f"{quote.source}\n"
             "[List specific news sources cited above]\n"
-            f"Retrieved: Aug 9, 2026 · {now_utc}"
+            f"Retrieved: {date_str} · {now_utc}"
         )
         
         try:
@@ -202,7 +205,7 @@ class DeepResearchEngine:
             logger.error(f"Error synthesizing deep research for {sym}: {e}")
             return (
                 f"🏢 {quote.name} ({sym})\n\n"
-                f"💰 Market: ${quote.price:,.2f} ({sign}{quote.percent_change:.2f}%)\n"
+                f"💰 Market: {curr}{quote.price:,.2f} ({sign}{quote.percent_change:.2f}%)\n"
                 f"Market Cap: {quote.market_cap_str} · P/E: {pe_str}\n\n"
-                f"📚 Sources: Yahoo Finance · Aug 9, 2026 · {now_utc}"
+                f"📚 Sources: {quote.source} · {date_str} · {now_utc}"
             )

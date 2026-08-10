@@ -69,8 +69,9 @@ class CompanyOverviewEngine:
         
         sign = "+" if quote.percent_change >= 0 else ""
         pe_str = f"{quote.pe_ratio:.1f}x" if quote.pe_ratio else "N/A"
+        date_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
         now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
-        curr_sym = "₹" if quote.symbol.endswith((".NS", ".BO")) else "$"
+        curr_sym = "₹" if quote.currency == "INR" or quote.symbol.endswith((".NS", ".BO")) else ("€" if quote.currency == "EUR" else ("£" if quote.currency == "GBP" else "$"))
         
         # Build strict news section
         used_publishers = []
@@ -93,7 +94,7 @@ class CompanyOverviewEngine:
 
         prompt = (
             f"You are Atlas, an elite institutional financial intelligence partner.\n"
-            f"CURRENT DATE: {CURRENT_DATE_STR} ({now_utc}).\n\n"
+            f"CURRENT DATE: {date_str} ({now_utc}).\n\n"
             f"TASK: Generate a concise, evidence-disciplined company overview for {brand_name} ({quote.symbol}).\n\n"
             f"--- DATA LEDGER (Ground Truth Only) ---\n"
             f"Company: {brand_name} ({quote.symbol})\n"
@@ -119,7 +120,7 @@ class CompanyOverviewEngine:
             f"Market cap: {quote.market_cap_str}\n"
             f"P/E: {pe_str}\n\n"
             "🏢 Business\n"
-            "[Key segments / product lines separated by middots, e.g. Search · Advertising · YouTube · Cloud · AI]\n\n"
+            "[Key segments / product lines separated by middots]\n\n"
             "📰 Latest\n"
             f"{news_block}\n\n"
             "💡 Key Takeaways\n"
@@ -128,7 +129,7 @@ class CompanyOverviewEngine:
             "[1 concise, evidence-grounded risk point]\n\n"
             "📚 Sources\n"
             f"{sources_str}\n"
-            f"Retrieved: Aug 9, 2026 · {now_utc}"
+            f"Retrieved: {date_str} · {now_utc}"
         )
         
         try:
@@ -157,5 +158,5 @@ class CompanyOverviewEngine:
                 f"{news_block}\n\n"
                 f"📚 Sources\n"
                 f"{sources_str}\n"
-                f"Retrieved: Aug 9, 2026 · {now_utc}"
+                f"Retrieved: {date_str} · {now_utc}"
             )

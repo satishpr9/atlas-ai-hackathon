@@ -9,7 +9,8 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-CURRENT_DATE_STR = "August 9, 2026"
+def get_current_date_str() -> str:
+    return datetime.now(timezone.utc).strftime("%B %d, %Y")
 
 class NewsArticle(BaseModel):
     symbol: str
@@ -46,9 +47,8 @@ class FinancialDataRouter:
     """
     Intelligent router that fetches financial data from the most appropriate API.
     Hierarchy:
-    1. SEC EDGAR (Simulated/Public APIs): Fundamentals, 10-K, 10-Q (Source of Truth)
-    2. Finnhub: Real-time quotes, earnings, market news
-    3. Yahoo Finance: Fallback / Broad coverage
+    1. SEC EDGAR / Finnhub: Real-time quotes, fundamentals, filings
+    2. Yahoo Finance: Broad global multi-exchange coverage & fallback
     """
     
     _finnhub_client = None
@@ -58,6 +58,47 @@ class FinancialDataRouter:
         if cls._finnhub_client is None and settings.finnhub_api_key:
             cls._finnhub_client = finnhub.Client(api_key=settings.finnhub_api_key)
         return cls._finnhub_client
+
+    @classmethod
+    def search_symbol(cls, query: str) -> Optional[str]:
+        """
+        Dynamically searches and resolves any company name or query to its primary ticker symbol.
+        Supports global stocks, Indian equities (NSE/BSE), European, Asian, etc.
+        """
+        q = query.strip()
+        if not q:
+            return None
+            
+        # If already formatted ticker
+        if re.match(r'^[A-Z0-9\.\-]{1,12}$', q.upper()) and not any(w in q.lower() for w in ["price", "stock", "inc", "ltd"]):
+            return q.upper()
+
+        # Try Finnhub symbol lookup
+        fh = cls.get_finnhub_client()
+        if fh:
+            try:
+                res = fh.symbol_lookup(q)
+                results = res.get("result", [])
+                if results:
+                    # Pick the highest quality / primary match
+                    for r in results:
+                        sym = r.get("symbol", "")
+                        # Filter out non-primary or noisy derivatives
+                        if "." not in sym or sym.endswith((".NS", ".BO", ".L", ".PA", ".DE")):
+                            return sym
+                    return results[0].get("symbol")
+            except Exception as e:
+                logger.debug(f"Finnhub symbol lookup failed for {q}: {e}")
+
+        # Fallback to Yahoo Finance Search
+        try:
+            search_res = yf.Search(q, max_results=3).quotes
+            if search_res:
+                return search_res[0].get("symbol")
+        except Exception as e:
+            logger.debug(f"Yahoo search failed for {q}: {e}")
+            
+        return None
 
     @staticmethod
     def _format_market_cap(val: Optional[float], currency: str = "USD") -> str:
@@ -109,20 +150,18 @@ class FinancialDataRouter:
     @classmethod
     def is_strictly_company_specific(cls, symbol: str, name: str, title: str) -> bool:
         title_lower = title.lower()
-        sym_lower = symbol.lower()
+        sym_clean = symbol.split('.')[0].lower()
         
-        company_aliases = {
-            "MSFT": ["microsoft", "msft", "azure", "windows", "copilot"],
-            "GOOGL": ["google", "alphabet", "googl", "goog", "youtube", "deepmind", "gemini"],
-            "GOOG": ["google", "alphabet", "googl", "goog", "youtube", "deepmind", "gemini"],
-            "AAPL": ["apple", "aapl", "iphone", "tim cook", "ipad", "macbook"],
-            "NVDA": ["nvidia", "nvda", "blackwell", "jensen huang", "hopper"],
-            "TSLA": ["tesla", "tsla", "elon musk", "cybertruck", "full self-driving", "fsd"],
-            "AMD": ["amd", "lisa su", "ryzen", "epyc", "instinct"],
-            "TSM": ["tsmc", "taiwan semiconductor", "tsm"]
-        }
-        
-        aliases = company_aliases.get(symbol.upper(), [sym_lower, name.lower().split()[0]])
+        # Build dynamic aliases from symbol and company name parts
+        aliases = {sym_clean}
+        if name:
+            # Clean up common corporate suffixes
+            cleaned_name = re.sub(r'\b(inc|corp|corporation|co|ltd|limited|plc|ag|nv|sa|se|holdings|group)\b', '', name.lower())
+            words = [w.strip() for w in re.split(r'[\s,\.-]+', cleaned_name) if len(w.strip()) > 2]
+            for w in words:
+                aliases.add(w)
+            if len(words) >= 2:
+                aliases.add(f"{words[0]} {words[1]}")
         
         # Filter out broad index / listicle / macro noise
         macro_noise = [

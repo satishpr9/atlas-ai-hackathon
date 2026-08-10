@@ -20,14 +20,15 @@ class StockPriceEngine:
         pe_str = f"\nP/E: {quote.pe_ratio:.1f}x" if quote.pe_ratio else ""
         vol_line = f"\nVolume: {vol_str}" if quote.volume > 0 else ""
         
-        curr_sym = "₹" if quote.symbol.endswith((".NS", ".BO")) else "$"
+        curr_sym = "₹" if quote.currency == "INR" or quote.symbol.endswith((".NS", ".BO")) else ("€" if quote.currency == "EUR" else ("£" if quote.currency == "GBP" else "$"))
+        date_str = datetime.now(timezone.utc).strftime("%b %d, %Y")
         now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
         
         return (
             f"📈 {brand_name} ({quote.symbol})\n\n"
             f"{curr_sym}{quote.price:,.2f} · {sign}{quote.percent_change:.2f}% today\n\n"
             f"Market cap: {quote.market_cap_str}{pe_str}{vol_line}\n\n"
-            f"As of Aug 9, 2026 · {now_utc}\n"
+            f"As of {date_str} · {now_utc}\n"
             f"Source: {quote.source}\n\n"
             f"Want the latest {brand_name} news or an explanation of today's move?"
         )

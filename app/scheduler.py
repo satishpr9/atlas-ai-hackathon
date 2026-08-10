@@ -6,24 +6,22 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-CURRENT_DATE_STR = "August 9, 2026"
-
-def _synthesize_catalyst_impact(symbol: str, title: str) -> str:
+def _synthesize_catalyst_impact(symbol: str, title: str, summary: str = "") -> str:
     """
-    Generates a concise institutional 'Why it matters' explanation for high-signal headlines.
+    Dynamically generates a concise institutional 'Why it matters' explanation.
     """
-    title_lower = title.lower()
-    if "copilot" in title_lower or "ai investment" in title_lower:
-        return "Monetization trajectory for enterprise generative AI software."
-    elif "earnings" in title_lower or "beat" in title_lower or "revenue" in title_lower:
+    title_lower = (title + " " + summary).lower()
+    if any(k in title_lower for k in ["earnings", "revenue", "profit", "quarter", "ebitda", "guidance", "beat", "miss"]):
         return "Direct fundamental validation of quarterly revenue and margin durability."
-    elif "sales" in title_lower or "drop" in title_lower or "rival" in title_lower:
-        return "Regional market-share dynamics and intensifying pricing competition."
-    elif "blackwell" in title_lower or "gpu" in title_lower or "chip" in title_lower:
-        return "Critical barometer for hyperscaler data-center capital expenditure."
-    elif "cloud" in title_lower or "azure" in title_lower or "gcp" in title_lower:
-        return "Enterprise cloud migration momentum and infrastructure workload growth."
-    return "Market sentiment driver impacting valuation multiples."
+    elif any(k in title_lower for k in ["ai", "chips", "gpu", "datacenter", "cloud", "compute"]):
+        return "Hyperscaler data-center demand & AI infrastructure deployment velocity."
+    elif any(k in title_lower for k in ["sec", "antitrust", "investigation", "probe", "lawsuit", "regulat"]):
+        return "Structural regulatory scrutiny impacting operational freedom or margins."
+    elif any(k in title_lower for k in ["acquisition", "merger", "deal", "buyout", "partnership"]):
+        return "Strategic consolidation and TAM expansion into adjacent verticals."
+    elif any(k in title_lower for k in ["fed", "rate", "inflation", "cpi", "macro", "treasury"]):
+        return "Macro discount-rate dynamics and equity valuation multiple sensitivity."
+    return "Material sentiment driver impacting near-term market expectations."
 
 async def generate_curated_morning_brief(user: Dict[str, Any]) -> str:
     """
@@ -59,33 +57,36 @@ async def generate_curated_morning_brief(user: Dict[str, Any]) -> str:
     sources = ["Yahoo Finance"]
     significant_movers = 0
     
-    for symbol in watch_list[:4]:
+    for symbol in watch_list[:5]:
         q = MarketDataProvider.get_quote(symbol)
         if q:
             sign = "+" if q.percent_change >= 0 else ""
+            curr = "₹" if q.currency == "INR" or q.symbol.endswith((".NS", ".BO")) else ("€" if q.currency == "EUR" else ("£" if q.currency == "GBP" else "$"))
             comp_news, _ = MarketDataProvider.get_company_news_classified(symbol, limit=1)
             
             if comp_news:
                 top_story = comp_news[0]
-                sources.append(top_story.publisher)
-                why_matters = _synthesize_catalyst_impact(q.symbol, top_story.title)
+                if top_story.publisher and top_story.publisher != "Financial Media":
+                    sources.append(top_story.publisher)
+                why_matters = _synthesize_catalyst_impact(q.symbol, top_story.title, top_story.summary)
                 watchlist_blocks.append(
-                    f"• {q.symbol}  ${q.price:,.2f} ({sign}{q.percent_change:.2f}%)\n"
-                    f"  Headline: {top_story.title[:75]}...\n"
+                    f"• {q.symbol}  {curr}{q.price:,.2f} ({sign}{q.percent_change:.2f}%)\n"
+                    f"  Headline: {top_story.title[:80]}...\n"
                     f"  Why it matters: {why_matters}"
                 )
                 significant_movers += 1
             else:
                 if abs(q.percent_change) >= 1.0:
-                    watchlist_blocks.append(f"• {q.symbol}  ${q.price:,.2f} ({sign}{q.percent_change:.2f}%) → Noteworthy price momentum; no breaking company filings.")
+                    watchlist_blocks.append(f"• {q.symbol}  {curr}{q.price:,.2f} ({sign}{q.percent_change:.2f}%) → Noteworthy price momentum; no breaking company filings.")
                     significant_movers += 1
                 else:
-                    watchlist_blocks.append(f"• {q.symbol}  ${q.price:,.2f} ({sign}{q.percent_change:.2f}%) → Quiet session; range-bound consolidation.")
+                    watchlist_blocks.append(f"• {q.symbol}  {curr}{q.price:,.2f} ({sign}{q.percent_change:.2f}%) → Quiet session; range-bound consolidation.")
                     
     watchlist_text = "\n\n".join(watchlist_blocks) if watchlist_blocks else "• Tracking broader equity indices"
     
     clean_sources = list(set([s for s in sources if s != "Financial Media"]))
     sources_str = " · ".join(clean_sources[:3])
+    date_str = datetime.now(timezone.utc).strftime("%b %d, %Y")
     now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
 
     briefing = (
@@ -94,11 +95,11 @@ async def generate_curated_morning_brief(user: Dict[str, Any]) -> str:
         f"{regime_icon} {regime_title} · S&P 500 ({spy_change}) · Nasdaq ({qqq_change})\n\n"
         f"📋 Watchlist Catalysts\n\n"
         f"{watchlist_text}\n\n"
-        f"💡 Key Macro Focus\n"
-        f"• Central bank interest rate outlook and liquidity conditions\n"
-        f"• Enterprise cloud capex and AI infrastructure deployment\n\n"
+        f"💡 Key Focus\n"
+        f"• Central bank policy cues and global liquidity conditions\n"
+        f"• Tech/AI infrastructure capex cadence and margin durability\n\n"
         f"📚 Sources\n"
-        f"{sources_str} · Aug 9, 2026 · {now_utc}"
+        f"{sources_str} · {date_str} · {now_utc}"
     )
     
     return briefing
@@ -116,13 +117,15 @@ async def generate_curated_evening_wrap(user: Dict[str, Any]) -> str:
     qqq_change = f"{qqq_quote.percent_change:+.2f}%" if qqq_quote else "+0.65%"
     
     watchlist_lines = []
-    for symbol in watch_list[:4]:
+    for symbol in watch_list[:5]:
         q = MarketDataProvider.get_quote(symbol)
         if q:
             sign = "+" if q.percent_change >= 0 else ""
-            watchlist_lines.append(f"• {q.symbol}  ${q.price:,.2f} ({sign}{q.percent_change:.2f}%)")
+            curr = "₹" if q.currency == "INR" or q.symbol.endswith((".NS", ".BO")) else ("€" if q.currency == "EUR" else ("£" if q.currency == "GBP" else "$"))
+            watchlist_lines.append(f"• {q.symbol}  {curr}{q.price:,.2f} ({sign}{q.percent_change:.2f}%)")
             
     wl_str = "\n".join(watchlist_lines) if watchlist_lines else "• Broader market indices tracked"
+    date_str = datetime.now(timezone.utc).strftime("%b %d, %Y")
     now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
 
     wrap = (
@@ -132,10 +135,10 @@ async def generate_curated_evening_wrap(user: Dict[str, Any]) -> str:
         f"📋 Watchlist Close\n"
         f"{wl_str}\n\n"
         f"💡 Overnight Watch\n"
-        f"• Asian & European futures opening momentum\n"
-        f"• Upcoming economic data and earnings reports\n\n"
+        f"• Global index futures & Asian market opening tone\n"
+        f"• Upcoming economic prints and earnings announcements\n\n"
         f"📚 Sources\n"
-        f"Yahoo Finance Real-time Feed · Aug 9, 2026 · {now_utc}"
+        f"Yahoo Finance Real-time Feed · {date_str} · {now_utc}"
     )
     return wrap
 

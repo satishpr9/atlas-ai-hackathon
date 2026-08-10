@@ -34,8 +34,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• Ask about any company — public or private\n"
         "• Compare stocks or analyze price movements\n"
         "• Upload earnings reports, 10-Ks, or financial PDFs for instant analysis\n"
-        "• Get a personalized morning market briefing\n"
-        "• Track stocks and set up alerts\n\n"
+        "• Get a personalized morning market briefing (/briefing)\n"
+        "• Track stocks and set up alerts (/watchlist)\n\n"
         "To tailor your experience, feel free to share your role (e.g. Investor, Analyst, Founder) or which stocks you follow."
     )
     await update.message.reply_text(welcome_text)
@@ -82,6 +82,9 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
     await update.message.reply_text(text)
+
+
+
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):

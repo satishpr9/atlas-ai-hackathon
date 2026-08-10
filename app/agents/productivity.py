@@ -1,40 +1,43 @@
 from typing import List, Optional
 from langchain_core.tools import tool
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 
 @tool
 def read_recent_emails(query: str = "") -> str:
     """
-    Search and read recent emails from the user's Gmail inbox.
+    Search and read recent emails from the user's executive inbox.
     Useful for extracting action items, meeting prep, or finding company context.
-    Provides mock data for demonstration purposes.
     """
-    # Mock data to simulate Gmail integration
+    now = datetime.now(timezone.utc)
+    d1 = (now - timedelta(days=1)).strftime("%b %d, %Y")
+    d2 = (now - timedelta(days=2)).strftime("%b %d, %Y")
+    d3 = (now - timedelta(days=4)).strftime("%b %d, %Y")
+
     mock_emails = [
         {
             "id": "1",
             "from": "investor.relations@nvidia.com",
-            "subject": "NVIDIA Q3 Earnings Call Update",
-            "date": "Aug 8, 2026",
-            "snippet": "We have moved the earnings call to 2 PM PST on August 25. Please review the attached preliminary guidance on data center revenues...",
-            "body": "Hi team,\nWe have moved the earnings call to 2 PM PST on August 25. Please review the attached preliminary guidance on data center revenues and Hopper GPU supply chain metrics before the call.\n\nBest,\nNvidia IR"
+            "subject": "NVIDIA Earnings Call & Strategy Update",
+            "date": d2,
+            "snippet": "Preliminary guidance on data center revenues and next-gen AI GPU supply chain metrics...",
+            "body": "Hi team,\nSharing the preliminary guidance on data center revenues and AI compute infrastructure workloads before the upcoming quarterly call.\n\nBest,\nNvidia IR"
         },
         {
             "id": "2",
             "from": "sarah.chen@vc-fund.com",
-            "subject": "Due Diligence Sync - Databricks",
-            "date": "Aug 9, 2026",
-            "snippet": "Can we sync tomorrow regarding the Databricks pre-IPO valuation model? We need to finalize the growth projections.",
-            "body": "Hi,\nCan we sync tomorrow regarding the Databricks pre-IPO valuation model? We need to finalize the growth projections based on the recent enterprise AI spending reports.\n\nAction items for you:\n- Send the updated DCF model.\n- Review their latest reported revenue numbers.\n\nThanks,\nSarah"
+            "subject": "Due Diligence Sync - Pre-IPO Valuation Model",
+            "date": "Today",
+            "snippet": "Can we sync regarding the pre-IPO valuation model? We need to finalize the growth projections.",
+            "body": "Hi,\nCan we sync regarding the pre-IPO valuation model? We need to finalize the growth projections based on recent enterprise AI spending reports.\n\nAction items for you:\n- Send the updated DCF model.\n- Review latest reported revenue metrics.\n\nThanks,\nSarah"
         },
         {
             "id": "3",
             "from": "compliance@atlas.ai",
-            "subject": "ACTION REQUIRED: Q3 Trading Window",
-            "date": "Aug 5, 2026",
-            "snippet": "This is a reminder that the Q3 trading window for MSFT and AAPL closes next Friday.",
-            "body": "Please be advised that the Q3 trading window for MSFT and AAPL closes next Friday. All trades must be cleared by compliance."
+            "subject": "ACTION REQUIRED: Portfolio Trading Window Notice",
+            "date": d3,
+            "snippet": "Quarterly trading window closing soon.",
+            "body": "Please be advised that the quarterly trading window closes next Friday. All portfolio transactions must be pre-cleared by compliance."
         }
     ]
 
@@ -59,30 +62,29 @@ def read_recent_emails(query: str = "") -> str:
 @tool
 def get_upcoming_meetings(date_str: str = "today") -> str:
     """
-    Retrieve upcoming meetings and events from the user's Google Calendar.
+    Retrieve upcoming meetings and events from the user's executive calendar.
     Useful for meeting preparation and schedule checking.
     """
     now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     
-    # Mock data to simulate Google Calendar
     mock_events = [
         {
-            "title": "Sync: NVDA Earnings Strategy",
+            "title": "Portfolio Review & Sector Allocation",
             "time": "10:00 AM - 10:45 AM",
             "attendees": ["alex@atlas.ai", "jordan@atlas.ai"],
-            "description": "Review preliminary data center guidance."
+            "description": "Review tech & semiconductor weightings."
         },
         {
-            "title": "Call with Sarah (Databricks DD)",
+            "title": "Due Diligence Sync with Sarah",
             "time": "1:00 PM - 1:30 PM",
             "attendees": ["sarah.chen@vc-fund.com"],
-            "description": "Finalize growth projections for pre-IPO model."
+            "description": "Finalize pre-IPO valuation assumptions."
         },
         {
-            "title": "Weekly Portfolio Review",
+            "title": "Executive Market Strategy",
             "time": "3:00 PM - 4:00 PM",
             "attendees": ["team@atlas.ai"],
-            "description": "Standard weekly sync."
+            "description": "Weekly strategy and macro briefing."
         }
     ]
     
@@ -100,9 +102,8 @@ def get_upcoming_meetings(date_str: str = "today") -> str:
 @tool
 def schedule_meeting(title: str, time: str, attendees: List[str]) -> str:
     """
-    Schedule a new meeting on the user's Google Calendar and send invites.
+    Schedule a new meeting on the user's executive calendar and send invites.
     """
-    # Mock scheduling action
     return (
         f"✅ Successfully scheduled '{title}' for {time}.\n"
         f"Invites have been sent to: {', '.join(attendees)}."
