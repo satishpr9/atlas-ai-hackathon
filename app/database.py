@@ -4,14 +4,32 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from urllib.parse import quote, unquote
+
+def _sanitize_dsn(uri: str) -> str:
+    if not uri or (not uri.startswith("postgresql://") and not uri.startswith("postgres://")):
+        return uri
+    try:
+        prefix, rest = uri.split("://", 1)
+        if "@" in rest:
+            userpass, hostpath = rest.rsplit("@", 1)
+            if ":" in userpass:
+                user, password = userpass.split(":", 1)
+                encoded_password = quote(unquote(password))
+                return f"{prefix}://{user}:{encoded_password}@{hostpath}"
+    except Exception:
+        pass
+    return uri
+
 class Database:
     pool: asyncpg.Pool = None
 
     @classmethod
     async def connect(cls):
         try:
+            dsn = _sanitize_dsn(settings.postgres_uri)
             cls.pool = await asyncpg.create_pool(
-                dsn=settings.postgres_uri,
+                dsn=dsn,
                 min_size=1,
                 max_size=10,
                 command_timeout=60
