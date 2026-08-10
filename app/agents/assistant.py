@@ -375,9 +375,12 @@ class AtlasAgentService:
                     break
                     
         # --- INTENT 1: Company Comparison ---
-        if ("compare" in lower_input or "versus" in lower_input or " vs " in lower_input) and len(tickers) >= 2:
-            logger.info(f"Routing to specialized CompanyComparisonEngine for {tickers[0]} and {tickers[1]}")
-            response = await CompanyComparisonEngine.compare(tickers[0], tickers[1], llm)
+        is_comparison = any(phrase in lower_input for phrase in ["compare", "vs", "versus", "difference between"]) and len(tickers) >= 2
+        is_investment = any(word in lower_input for word in ["investment", "invest", "buy", "better stock", "portfolio", "perspective", "attractive"])
+        if is_comparison:
+            mode = "investment" if is_investment else "standard"
+            logger.info(f"Routing to CompanyComparisonEngine for {tickers[0]} and {tickers[1]} (Mode: {mode})")
+            response = await CompanyComparisonEngine.compare(tickers[0], tickers[1], llm, mode=mode)
             await save_message(user_id, "user", user_input)
             await save_message(user_id, "assistant", response)
             return response
