@@ -29,7 +29,7 @@ jobs:
       - name: Verify Application Imports & Syntax
         env:
           TELEGRAM_BOT_TOKEN: "mock_token_for_ci_test"
-          MONGODB_URI: "mongodb://localhost:27017"
+          POSTGRES_URI: "postgresql://postgres:password@localhost:5432/postgres"
         run: |
           python -c "import app.main; print('✅ FastAPI Application module parsed and loaded successfully!')"
           python -c "import app.bot; print('✅ Telegram Bot module parsed and loaded successfully!')"
