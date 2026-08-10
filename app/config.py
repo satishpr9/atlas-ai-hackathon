@@ -2,8 +2,8 @@ import os
 from typing import Optional
 from dotenv import load_dotenv
 
-# Force load .env over any stale system environment variables
-load_dotenv(override=True)
+# Load environment variables (system env vars take precedence)
+load_dotenv()
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

@@ -22,5 +22,7 @@ services:
         value: gpt-4o-mini
       - key: FINNHUB_API_KEY
         sync: false
+      - key: BOT_PASSWORD
+        sync: false
       - key: WEBHOOK_URL
         sync: false

@@ -259,7 +259,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Password Gateway
     if not user.is_authorized:
-        if user_message.strip() == settings.bot_password:
+        if user_message.strip().lower() == settings.bot_password.strip().lower():
             await update_user_profile(user_id, {"is_authorized": True})
             user.is_authorized = True
             await update.message.reply_text("✅ Access granted. Welcome to Atlas. How can I help you today?")
