@@ -51,11 +51,11 @@ INSTRUCTIONS:
 2. Discard any event with a score < 60 or that is low-quality filler.
 3. Select the TOP 3 to 5 most important events.
 4. If there are NO events > 60 impact, output EXACTLY the string: "NO_EVENTS" and nothing else.
-5. DO NOT act like a news reader reporting headlines. Instead, synthesize the event into an actionable intelligence insight.
-Format each event EXACTLY like this (NO HEADLINES):
+5. DO NOT act like a news reader. Instead, write a highly informative, personalized intelligence brief for the user.
+Format the output EXACTLY like this for the top 2-3 most critical themes/events:
 
-[Number]. [Symbol] → [One-sentence synthesis of the actual event and its immediate operational/financial impact. E.g. "TSMC's 44.7% monthly revenue jump validates sustained AI infrastructure demand."]
-Impact: [1 concise sentence on how this specifically affects the market or the user's watchlist. E.g. "This reinforces structural momentum for NVDA and AMD ahead of their earnings."]
+[Symbol or Macro Theme]: [Deep, informative analysis of the underlying fundamental drivers. Do not just summarize a headline. Explain the 'why' and the broader context like an advisor.]
+Strategic Impact: [How this specifically affects their watchlist or broader market positioning moving forward.]
 
 Output ONLY the formatted list of events (or NO_EVENTS). No intro, no outro.
 """

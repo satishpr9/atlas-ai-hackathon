@@ -380,17 +380,29 @@ class FinancialDataRouter:
             sector = info.get('sector', 'N/A')
             summary = info.get('longBusinessSummary', '')
             
+            # Smart Industry Classification Formatting
+            core_biz = []
+            if sector and sector != 'N/A': core_biz.append(sector)
+            if industry and industry != 'N/A': core_biz.append(industry)
+            biz_str = " · ".join(core_biz) if core_biz else 'N/A'
+            
             overview.update({
                 "name": info.get('longName', symbol.upper()),
                 "sector": sector,
                 "industry": industry or 'N/A',
-                "core_business": industry if industry else f"{sector} & Operations",
+                "core_business": biz_str,
                 "business_summary": summary[:500] if summary else "",
                 "market_cap": info.get('marketCap'),
                 "market_cap_str": cls._format_market_cap(info.get('marketCap')),
                 "pe_ratio": info.get('trailingPE'),
                 "forward_pe": info.get('forwardPE'),
                 "revenue": info.get('totalRevenue'),
+                "revenue_growth": info.get('revenueGrowth'),
+                "earnings_growth": info.get('earningsGrowth'),
+                "operating_margin": info.get('operatingMargins'),
+                "free_cashflow": info.get('freeCashflow'),
+                "ev_ebitda": info.get('enterpriseToEbitda'),
+                "price_to_sales": info.get('priceToSalesTrailing12Months'),
                 "profit_margin": info.get('profitMargins'),
                 "employees": info.get('fullTimeEmployees'),
                 "source": "Yahoo Finance"
