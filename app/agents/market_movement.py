@@ -3,6 +3,7 @@ from app.market_data import MarketDataProvider, MarketQuote, NewsArticle
 from langchain_core.messages import SystemMessage, HumanMessage
 import logging
 from datetime import datetime, timezone
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +17,15 @@ class MarketMovementAnalyzer:
     """
     @classmethod
     async def analyze_movement(cls, symbol: str, llm) -> str:
-        quote = MarketDataProvider.get_quote(symbol)
+        quote, news_result = await asyncio.gather(
+            asyncio.to_thread(MarketDataProvider.get_quote, symbol),
+            asyncio.to_thread(MarketDataProvider.get_company_news_classified, symbol, limit=3)
+        )
+        
         if not quote:
             return f"Could not retrieve real-time market data for {symbol.upper()}."
             
-        comp_news, ind_news = MarketDataProvider.get_company_news_classified(symbol, limit=3)
+        comp_news, ind_news = news_result
         
         # Build evidence block
         news_lines = []

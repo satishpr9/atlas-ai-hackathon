@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 from app.market_data import MarketDataProvider, MarketQuote, NewsArticle
 from langchain_core.messages import SystemMessage, HumanMessage
 from datetime import datetime, timezone
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -41,19 +42,22 @@ class CompanyComparisonEngine:
     async def compare(cls, ticker1: str, ticker2: str, llm, mode: str = "standard") -> str:
         t1, t2 = ticker1.upper(), ticker2.upper()
         
-        q1 = MarketDataProvider.get_quote(t1)
-        q2 = MarketDataProvider.get_quote(t2)
-        ov1 = MarketDataProvider.get_company_overview(t1)
-        ov2 = MarketDataProvider.get_company_overview(t2)
+        q1, q2, ov1, ov2, news1, news2 = await asyncio.gather(
+            asyncio.to_thread(MarketDataProvider.get_quote, t1),
+            asyncio.to_thread(MarketDataProvider.get_quote, t2),
+            asyncio.to_thread(MarketDataProvider.get_company_overview, t1),
+            asyncio.to_thread(MarketDataProvider.get_company_overview, t2),
+            asyncio.to_thread(MarketDataProvider.get_company_news_classified, t1, limit=2),
+            asyncio.to_thread(MarketDataProvider.get_company_news_classified, t2, limit=2)
+        )
+        comp1, ind1 = news1
+        comp2, ind2 = news2
         
         if not q1 or not q2:
             return f"Unable to retrieve verified market data for {t1} vs {t2}."
             
         name1 = BRAND_MAP.get(q1.symbol, q1.name.split(',')[0].split('(')[0].strip() if q1.name else q1.symbol)
         name2 = BRAND_MAP.get(q2.symbol, q2.name.split(',')[0].split('(')[0].strip() if q2.name else q2.symbol)
-        
-        comp1, ind1 = MarketDataProvider.get_company_news_classified(t1, limit=2)
-        comp2, ind2 = MarketDataProvider.get_company_news_classified(t2, limit=2)
         
         # 1. Delta Math
         cap1 = q1.market_cap or 0

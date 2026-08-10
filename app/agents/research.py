@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from langchain_core.messages import HumanMessage
 from app.market_data import MarketDataProvider
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +64,15 @@ class DeepResearchEngine:
         
         if tickers:
             sym = tickers[0]
-            quote = MarketDataProvider.get_quote(sym)
+            # Since get_quote is often fast and cached, we check if it exists first
+            quote = await asyncio.to_thread(MarketDataProvider.get_quote, sym)
             if quote:
-                # Public company with live data
-                overview = MarketDataProvider.get_company_overview(sym)
-                comp_news, ind_news = MarketDataProvider.get_company_news_classified(sym, limit=3)
+                # Public company with live data -> fetch the rest concurrently
+                overview, news_result = await asyncio.gather(
+                    asyncio.to_thread(MarketDataProvider.get_company_overview, sym),
+                    asyncio.to_thread(MarketDataProvider.get_company_news_classified, sym, limit=3)
+                )
+                comp_news, ind_news = news_result
                 return await cls._synthesize_public_deep_dive(sym, quote, overview, comp_news, ind_news, query, llm, now_utc, date_str)
 
         # No live market data → treat as private/general research

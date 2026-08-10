@@ -3,6 +3,7 @@ from app.market_data import MarketDataProvider, MarketQuote, NewsArticle
 from langchain_core.messages import HumanMessage
 import logging
 from datetime import datetime, timezone
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +57,15 @@ class CompanyOverviewEngine:
     @classmethod
     async def get_overview(cls, symbol: str, llm) -> str:
         sym = symbol.upper()
-        quote = MarketDataProvider.get_quote(sym)
-        overview = MarketDataProvider.get_company_overview(sym)
+        quote, overview, news_result = await asyncio.gather(
+            asyncio.to_thread(MarketDataProvider.get_quote, sym),
+            asyncio.to_thread(MarketDataProvider.get_company_overview, sym),
+            asyncio.to_thread(MarketDataProvider.get_company_news_classified, sym, limit=2)
+        )
+        comp_news, _ = news_result
         
         if not quote:
             return f"Could not retrieve verified market data for '{sym}'."
-            
-        comp_news, _ = MarketDataProvider.get_company_news_classified(sym, limit=2)
         
         brand_name = BRAND_MAP.get(quote.symbol, quote.name.split(',')[0].split('(')[0].strip() if quote.name else quote.symbol)
         emoji = BRAND_EMOJIS.get(quote.symbol, "🏢")

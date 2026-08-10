@@ -6,20 +6,21 @@ from datetime import datetime, timezone
 from app.market_data import get_current_date_str
 
 @tool
-def get_stock_quote(ticker: str) -> str:
+async def get_stock_quote(ticker: str) -> str:
     """
     Get the verified, real-time stock price, percentage change, and volume for a company.
     Returns strictly the stock price and key market stats without unnecessary analysis.
     """
     from app.agents.price_engine import StockPriceEngine
-    return StockPriceEngine.get_price(ticker)
+    return await StockPriceEngine.get_price(ticker)
 
 @tool
-def get_market_overview(scope: str = "us") -> str:
+async def get_market_overview(scope: str = "us") -> str:
     """
     Get a broad market overview showing major index performance (S&P 500, Nasdaq, Dow Jones, Russell 2000).
     Use this when the user asks about 'the market', 'market today', 'indices', or broad market conditions.
     """
+    import asyncio
     indices = {
         "^GSPC": "S&P 500",
         "^IXIC": "Nasdaq Composite", 
@@ -31,11 +32,12 @@ def get_market_overview(scope: str = "us") -> str:
     now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
     lines = ["📊 Market Overview\n"]
     
-    for sym, name in indices.items():
-        quote = MarketDataProvider.get_quote(sym)
+    quotes = await asyncio.gather(*(asyncio.to_thread(MarketDataProvider.get_quote, sym) for sym in indices.keys()))
+    
+    for quote, name in zip(quotes, indices.values()):
         if quote:
             sign = "+" if quote.percent_change >= 0 else ""
-            if sym == "^VIX":
+            if quote.symbol == "^VIX":
                 lines.append(f"  {name}: {quote.price:.2f} ({sign}{quote.percent_change:.2f}%)")
             else:
                 lines.append(f"  {name}: {quote.price:,.2f} ({sign}{quote.percent_change:.2f}%)")
@@ -44,16 +46,19 @@ def get_market_overview(scope: str = "us") -> str:
     return "\n".join(lines)
 
 @tool
-def get_earnings_calendar(ticker: str) -> str:
+async def get_earnings_calendar(ticker: str) -> str:
     """
     Get upcoming earnings dates and key financial metrics for a company.
     Use when users ask about earnings, earnings dates, upcoming calls, or financial results.
     """
     import yfinance as yf
     try:
-        t = yf.Ticker(ticker.upper())
-        info = t.info or {}
-        cal = t.calendar or {}
+        import asyncio
+        def _fetch_info(tckr):
+            t = yf.Ticker(tckr.upper())
+            return t.info or {}, t.calendar or {}
+            
+        info, cal = await asyncio.to_thread(_fetch_info, ticker)
         
         now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
         name = info.get('longName', ticker.upper())
@@ -108,7 +113,7 @@ def get_earnings_calendar(ticker: str) -> str:
         return f"Unable to retrieve earnings data for {ticker.upper()}: {str(e)}"
 
 @tool
-def compare_companies_data(tickers: List[str]) -> str:
+async def compare_companies_data(tickers: List[str]) -> str:
     """
     Compare multiple companies on valuation, market cap, and recent performance.
     """
@@ -118,8 +123,10 @@ def compare_companies_data(tickers: List[str]) -> str:
     lines = ["📊 Market Comparison\n"]
     now_utc = datetime.now(timezone.utc).strftime("%H:%M UTC")
     
-    for symbol in tickers:
-        quote = MarketDataProvider.get_quote(symbol)
+    import asyncio
+    quotes = await asyncio.gather(*(asyncio.to_thread(MarketDataProvider.get_quote, sym) for sym in tickers))
+    
+    for quote in quotes:
         if quote:
             sign = "+" if quote.percent_change >= 0 else ""
             pe_str = f" ({quote.pe_ratio:.1f}x P/E)" if quote.pe_ratio else ""
@@ -129,11 +136,12 @@ def compare_companies_data(tickers: List[str]) -> str:
     return "\n".join(lines)
 
 @tool
-def get_company_news(ticker: str) -> str:
+async def get_company_news(ticker: str) -> str:
     """
     Get the latest verified news articles with publisher and relative timestamps.
     """
-    articles = MarketDataProvider.get_recent_news(ticker, limit=3)
+    import asyncio
+    articles = await asyncio.to_thread(MarketDataProvider.get_recent_news, ticker, limit=3)
     if not articles:
         return f"📰 Latest: No breaking headlines verified for {ticker.upper()} in the last 24h."
         

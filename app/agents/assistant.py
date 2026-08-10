@@ -426,7 +426,7 @@ class AtlasAgentService:
         ])
         if is_price_query and not is_movement_or_deep and tickers:
             logger.info(f"Routing to StockPriceEngine for {tickers[0]}")
-            response = StockPriceEngine.get_price(tickers[0])
+            response = await StockPriceEngine.get_price(tickers[0])
             await save_message(user_id, "user", user_input)
             await save_message(user_id, "assistant", response)
             return response

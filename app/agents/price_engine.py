@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import asyncio
 from app.market_data import FinancialDataRouter
 from app.agents.overview import BRAND_MAP
 
@@ -9,8 +10,8 @@ class StockPriceEngine:
     instant speed, exact verification.
     """
     @classmethod
-    def get_price(cls, symbol: str) -> str:
-        quote = FinancialDataRouter.get_quote(symbol)
+    async def get_price(cls, symbol: str) -> str:
+        quote = await asyncio.to_thread(FinancialDataRouter.get_quote, symbol)
         if not quote:
             return f"Unable to retrieve verified market quote for '{symbol.upper()}'."
         
