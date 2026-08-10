@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 # We initialize the bot application globally so we can access it inside the webhook
 bot_app = None
 
+from app.config import settings
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -22,8 +24,10 @@ async def lifespan(app: FastAPI):
     await bot_app.initialize()
     await bot_app.start()
     
-    # Optional: If you want to use webhooks instead of polling, you would set the webhook URL here.
-    # For local testing, we'll start polling if not using webhooks.
+    if settings.webhook_url:
+        webhook_target = f"{settings.webhook_url.rstrip('/')}/webhook"
+        logger.info(f"Setting Telegram Webhook URL to {webhook_target}...")
+        await bot_app.bot.set_webhook(url=webhook_target)
     
     yield
     

@@ -1,0 +1,35 @@
+# FastAPI & Web Server
+fastapi==0.141.1
+uvicorn==0.52.1
+starlette==1.5.0
+httpx==0.28.1
+
+# Telegram Bot & Async Framework
+python-telegram-bot==22.8
+APScheduler==3.11.3
+
+# Database & Drivers
+motor==3.7.1
+pymongo==4.17.0
+
+# LangChain & LangGraph Framework
+langchain==1.3.14
+langchain-core==1.5.3
+langchain-community==0.4.2
+langchain-openai==1.4.2
+langchain-google-genai==4.3.2
+langgraph==1.2.10
+
+# AI Models & Providers
+openai==2.53.0
+google-genai==2.17.0
+
+# Financial Data & Market Data
+finnhub-python==2.4.29
+yfinance==1.5.2
+pypdf==6.15.0
+
+# Utilities
+pydantic==2.13.4
+pydantic-settings==2.15.0
+python-dotenv==1.2.2

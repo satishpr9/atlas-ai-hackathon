@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     database_name: str = "atlas_finance_db"
     finnhub_api_key: Optional[str] = None
     bot_password: str = "Atlas2024"
+    port: int = 8000
+    webhook_url: Optional[str] = None
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

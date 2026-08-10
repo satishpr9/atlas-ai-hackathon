@@ -1,0 +1,67 @@
+name: CI/CD Pipeline & Automatic Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-and-verify:
+    name: Build & Code Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify Application Imports & Syntax
+        env:
+          TELEGRAM_BOT_TOKEN: "mock_token_for_ci_test"
+          MONGODB_URI: "mongodb://localhost:27017"
+        run: |
+          python -c "import app.main; print('✅ FastAPI Application module parsed and loaded successfully!')"
+          python -c "import app.bot; print('✅ Telegram Bot module parsed and loaded successfully!')"
+
+  deploy-to-cloud:
+    name: Deploy to Cloud Host (Render / Railway)
+    needs: test-and-verify
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Trigger Render Deploy Hook (if secret configured)
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "🚀 Triggering Render Deployment Hook..."
+            curl -X POST "$RENDER_DEPLOY_HOOK"
+            echo "✅ Render deployment trigger sent successfully!"
+          else
+            echo "ℹ️ RENDER_DEPLOY_HOOK_URL secret not set. Skipping Render webhook trigger."
+          fi
+
+      - name: Deploy to Railway (if token configured)
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -n "$RAILWAY_TOKEN" ]; then
+            echo "🚀 Deploying to Railway via Railway CLI..."
+            npm install -g @railway/cli
+            railway up --detach
+            echo "✅ Railway deployment triggered successfully!"
+          else
+            echo "ℹ️ RAILWAY_TOKEN secret not set. Skipping Railway deployment."
+          fi
