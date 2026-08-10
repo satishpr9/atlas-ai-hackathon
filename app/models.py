@@ -11,6 +11,7 @@ class UserProfile(BaseModel):
     telegram_id: int
     first_name: Optional[str] = None
     username: Optional[str] = None
+    is_authorized: bool = False
     
     # Preferences extracted naturally from conversation
     role: Optional[str] = None # e.g. "Investor", "Analyst", "Founder", "Student", "Finance Professional"

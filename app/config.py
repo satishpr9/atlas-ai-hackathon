@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     mongodb_uri: str = "mongodb://localhost:27017"
     database_name: str = "atlas_finance_db"
     finnhub_api_key: Optional[str] = None
+    bot_password: str = "Atlas2024"
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

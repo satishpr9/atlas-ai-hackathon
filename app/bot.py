@@ -25,7 +25,11 @@ _DOCUMENT_CONTEXT: dict = {}
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_name = update.effective_user.first_name or "there"
-    await get_or_create_user(user_id, first_name=user_name, username=update.effective_user.username)
+    user = await get_or_create_user(user_id, first_name=user_name, username=update.effective_user.username)
+
+    if not user.is_authorized:
+        await update.message.reply_text("🔒 Welcome to Atlas. This is a private financial intelligence bot. Please enter the access code to continue.")
+        return
 
     welcome_text = (
         f"Welcome to Atlas AI, {user_name}!\n\n"
@@ -52,6 +56,12 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     Extracts text from PDFs, stores it in session for follow-up Q&A,
     and generates an instant executive summary.
     """
+    user_id = update.effective_user.id
+    user = await get_or_create_user(user_id)
+    if not user.is_authorized:
+        await update.message.reply_text("🔒 Welcome to Atlas. This is a private financial intelligence bot. Please enter the access code to continue.")
+        return
+
     document = update.message.document
     if not document.file_name.endswith('.pdf'):
         await update.message.reply_text("I can analyze PDF documents. Please upload a PDF file.")
@@ -236,6 +246,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user = await get_or_create_user(user_id)
     lower_msg = user_message.lower()
+
+    # Password Gateway
+    if not user.is_authorized:
+        if user_message.strip() == settings.bot_password:
+            await update_user_profile(user_id, {"is_authorized": True})
+            user.is_authorized = True
+            await update.message.reply_text("✅ Access granted. Welcome to Atlas. How can I help you today?")
+        else:
+            await update.message.reply_text("🔒 Welcome to Atlas. This is a private financial intelligence bot. Please enter the access code to continue.")
+        return
 
     # Conversational Onboarding Flow
     if user.onboarding_stage != "completed":
