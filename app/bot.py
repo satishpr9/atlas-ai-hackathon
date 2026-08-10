@@ -34,54 +34,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• Ask about any company — public or private\n"
         "• Compare stocks or analyze price movements\n"
         "• Upload earnings reports, 10-Ks, or financial PDFs for instant analysis\n"
-        "• Get a personalized morning market briefing (/briefing)\n"
-        "• Track stocks and set up alerts (/watchlist)\n\n"
-        "To tailor your experience, feel free to share your role (e.g. Investor, Analyst, Founder) or which stocks you follow."
+        "• Get a personalized morning market briefing\n"
+        "• Track stocks and set up alerts\n\n"
+        "To get started, tell me your role (e.g. Investor, Analyst, Founder) or which stocks you follow."
     )
     await update.message.reply_text(welcome_text)
 
-async def briefing_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    await update.message.chat.send_action("typing")
-    user = await get_or_create_user(user_id)
-    user_dict = {
-        "telegram_id": user_id,
-        "watch_list": user.watch_list or ["NVDA", "AAPL", "MSFT"],
-        "role": user.role,
-        "interests": user.interests,
-        "preferred_insights": user.preferred_insights
-    }
-    briefing_text = await generate_curated_morning_brief(user_dict)
-    await update.message.reply_text(briefing_text)
 
-async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    user = await get_or_create_user(user_id)
-    watchlist = user.watch_list or []
-    
-    if not watchlist:
-        text = (
-            "Your watchlist is empty.\n\n"
-            "Tell me which stocks you follow (e.g. 'Add NVDA and TSLA to my watchlist') "
-            "and I will monitor them for your daily briefings."
-        )
-    else:
-        quotes_summary = []
-        for sym in watchlist:
-            q = MarketDataProvider.get_quote(sym)
-            if q:
-                sign = "+" if q.percent_change >= 0 else ""
-                quotes_summary.append(f"• {q.symbol}: ${q.price:,.2f} ({sign}{q.percent_change:.2f}%)")
-            else:
-                quotes_summary.append(f"• {sym}: Tracking")
-                
-        text = (
-            f"Your Watchlist ({len(watchlist)} stocks)\n\n"
-            + "\n".join(quotes_summary) +
-            "\n\nTell me 'Remove AAPL' or 'Add AMZN' anytime."
-        )
-        
-    await update.message.reply_text(text)
 
 
 
@@ -186,7 +145,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
             transcription = ""
 
         if not transcription:
-            await update.message.reply_text("I received your voice note but could not transcribe it clearly. Please try again or type your message.")
+            await update.message.reply_text("I couldn't quite catch that. Could you try speaking a bit closer to the microphone, or type your request?")
             return
 
         response = await atlas_agent.process_message(user_id, transcription)
@@ -252,13 +211,16 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if resp.status_code == 200:
             result = resp.json()
             analysis_text = result["choices"][0]["message"]["content"]
+            if len(analysis_text) < 20 or "cannot read" in analysis_text.lower() or "not clear" in analysis_text.lower():
+                await update.message.reply_text("I couldn't extract clear financial data from this image. Could you try sending a higher-resolution screenshot or closer crop?")
+                return
             await update.message.reply_text(analysis_text)
         else:
             logger.error(f"Vision API error: {resp.text}")
-            await update.message.reply_text("I could not extract clear data from this image. Please try a higher resolution photo.")
+            await update.message.reply_text("I couldn't extract clear financial data from this image. Could you try sending a higher-resolution screenshot or closer crop?")
     except Exception as e:
         logger.error(f"Error handling photo: {e}")
-        await update.message.reply_text("I had trouble analyzing that image. Please try again.")
+        await update.message.reply_text("I had trouble analyzing that image. Could you try sending a higher-resolution screenshot or closer crop?")
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -270,9 +232,38 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.chat.send_action("typing")
     
+    user = await get_or_create_user(user_id)
+    lower_msg = user_message.lower()
+
+    # Conversational Onboarding Flow
+    if user.onboarding_stage != "completed":
+        is_question = "?" in user_message or len(user_message.split()) > 6 or any(w in lower_msg for w in ["what", "how", "why", "who", "when", "tell me", "compare"])
+        if is_question:
+            await update_user_profile(user_id, {"onboarding_stage": "completed"})
+            user.onboarding_stage = "completed"
+        else:
+            if lower_msg == "skip":
+                await update_user_profile(user_id, {"onboarding_stage": "completed"})
+                await update.message.reply_text("Setup skipped! You can ask me about stocks or markets anytime.")
+                return
+
+            if user.onboarding_stage == "initial":
+                await update_user_profile(user_id, {"role": user_message, "onboarding_stage": "asked_role"})
+                await update.message.reply_text(f"Got it. You're focusing on {user_message}. Which specific stocks or sectors would you like me to track for your watchlist? (e.g. 'NVDA, TSLA, AI chips')")
+                return
+                
+            if user.onboarding_stage == "asked_role":
+                await update_user_profile(user_id, {"interests": [user_message], "onboarding_stage": "asked_watchlist"})
+                await update.message.reply_text("Watchlist noted. I'll prepare a morning briefing for you daily. What time would you like to receive it? (e.g. '8:30 AM EST')")
+                return
+                
+            if user.onboarding_stage == "asked_watchlist":
+                await update_user_profile(user_id, {"briefing_time": user_message, "onboarding_stage": "completed"})
+                await update.message.reply_text(f"Briefing time set to {user_message}. Setup complete! How can I help you right now?")
+                return
+        
     # Check if user has a document in context and the message seems like a follow-up
     doc_ctx = _DOCUMENT_CONTEXT.get(user_id)
-    lower_msg = user_message.lower()
     
     is_external_query = any(phrase in lower_msg for phrase in [
         "email", "calendar", "meeting", "morning brief", "evening wrap", "watchlist", "schedule"
@@ -304,9 +295,6 @@ def setup_bot():
     app = ApplicationBuilder().token(settings.telegram_bot_token).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("briefing", briefing_command))
-    app.add_handler(CommandHandler("watchlist", watchlist_command))
-    app.add_handler(CommandHandler("help", start))
     app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))

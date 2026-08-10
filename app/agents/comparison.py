@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-CURRENT_DATE_STR = "August 9, 2026"
+from app.market_data import get_current_date_str
 
 BRAND_MAP = {
     "MSFT": "Microsoft",
@@ -74,8 +74,8 @@ class CompanyComparisonEngine:
         pe1_str = f"{q1.pe_ratio:.1f}x P/E" if q1.pe_ratio else "N/A P/E"
         pe2_str = f"{q2.pe_ratio:.1f}x P/E" if q2.pe_ratio else "N/A P/E"
         
-        biz1 = ov1.get('core_business', 'Technology & Operations')
-        biz2 = ov2.get('core_business', 'Technology & Operations')
+        biz1 = ov1.get('core_business', 'N/A')
+        biz2 = ov2.get('core_business', 'N/A')
 
         # 2. Strict News Section Assembly
         def build_company_news_line(articles: List[NewsArticle], brand: str) -> str:
@@ -113,7 +113,8 @@ class CompanyComparisonEngine:
             f"----------------------------\n\n"
             "RULES:\n"
             f"1. Tailor the '🌐 Industry', '💡 Bottom line', and 'Watch' items SPECIFICALLY to the actual business models of {name1} and {name2} (e.g. if EVs/automotive, discuss EV production scaling, delivery volumes, software monetization, and margin durability; if Cloud/AI, discuss cloud capex, enterprise adoption, and ad revenue).\n"
-            "2. Follow the EXACT Telegram template below without raw markdown '##' headers.\n\n"
+            "2. Focus on structural comparative advantages (e.g. TAM, margins, economic moats, capital allocation) rather than just stating who is bigger. Tell the user *why it matters*.\n"
+            "3. Follow the EXACT Telegram template below without raw markdown '##' headers.\n\n"
             "EXACT OUTPUT TEMPLATE:\n\n"
             f"📊 {name1} vs {name2}\n\n"
             "💰 Market\n"

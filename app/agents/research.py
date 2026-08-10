@@ -6,7 +6,7 @@ from app.market_data import MarketDataProvider
 
 logger = logging.getLogger(__name__)
 
-CURRENT_DATE_STR = "August 9, 2026"
+from app.market_data import get_current_date_str
 
 # --- Epistemic Calibration Prompt ---
 # This is the core intellectual engine: it forces the LLM to distinguish
@@ -150,9 +150,9 @@ class DeepResearchEngine:
             news_lines.append("• No major breaking company-specific headlines verified in the last 24h.")
         news_block = "\n".join(news_lines)
         
-        sector = overview.get('sector', 'Technology')
+        sector = overview.get('sector', 'N/A')
         industry = overview.get('industry', '')
-        biz = overview.get('core_business', 'Technology & Operations')
+        biz = overview.get('core_business', 'N/A')
         
         prompt = (
             f"You are Atlas, an elite institutional financial intelligence partner.\n"

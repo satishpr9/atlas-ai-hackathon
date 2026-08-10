@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-CURRENT_DATE_STR = "August 9, 2026"
+from app.market_data import get_current_date_str
 
 class MarketMovementAnalyzer:
     """
@@ -58,8 +58,9 @@ class MarketMovementAnalyzer:
             f"-----------------------------------------\n\n"
             "CRITICAL OPERATIONAL RULES:\n"
             "1. NEVER ASSUME CAUSALITY: Do not state that an article 'caused' the price move unless there is explicit confirmed proof (e.g. earnings release or regulatory filing today). Acknowledge relevant news while clarifying if causality is unproven.\n"
-            "2. NO HALLUCINATED TECHNICAL LEVELS: Do NOT invent arbitrary price support or resistance levels (like '$320 support'). Mention general watch items like price momentum, volume, or business factors.\n"
-            "3. CLEAN TELEGRAM LAYOUT: Follow the EXACT template below.\n\n"
+            "2. Focus on institutional analysis (e.g., macro discount-rate dynamics, sector rotation, structural tailwinds) rather than retail-style fact dumps. Tell the user *why it matters*.\n"
+            "3. NO HALLUCINATED TECHNICAL LEVELS: Do NOT invent arbitrary price support or resistance levels (like '$320 support'). Mention general watch items like price momentum, volume, or business factors.\n"
+            "4. CLEAN TELEGRAM LAYOUT: Follow the EXACT template below.\n\n"
             "REQUIRED OUTPUT STRUCTURE:\n\n"
             f"📈 {quote.symbol} Movement\n\n"
             "💰 Price Action\n"

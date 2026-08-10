@@ -21,6 +21,8 @@ htmlcov/
 *.log
 *.sqlite
 *.sqlite3
+data/*.json
+data/users_store.json
 
 # IDE & OS files
 .vscode/

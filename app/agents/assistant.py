@@ -251,6 +251,19 @@ class AtlasAgentService:
         if tickers:
             ctx_parts.append(f"Detected Tickers in Context: {', '.join(tickers)}")
             
+            # --- AMBIGUITY CHECK (Clarify before guessing) ---
+            info_markers = ["price", "news", "compare", "vs", "earnings", "financials", "overview", "chart", "trend", "buy", "sell", "dividend", "performance", "add", "track", "remove"]
+            has_info_marker = any(marker in lower_input for marker in info_markers)
+            
+            is_generic_tell = "tell me about" in lower_input and not has_info_marker
+            is_bare_ticker = len(user_input.split()) <= 3 and not has_info_marker
+            
+            if is_generic_tell or is_bare_ticker:
+                response = f"What specifically would you like to know about {tickers[0]}? (e.g. latest price, recent news, or a general overview)"
+                await save_message(user_id, "user", user_input)
+                await save_message(user_id, "assistant", response)
+                return response
+                
         user_context = "\n".join(ctx_parts) if ctx_parts else "Standard Investor Profile"
         
         # --- CONVERSATIONAL WATCHLIST MANAGEMENT (Zero command navigation) ---
@@ -270,7 +283,12 @@ class AtlasAgentService:
                 return response
 
         if any(phrase in lower_input for phrase in ["my watchlist", "show my watchlist", "view watchlist", "what am i tracking"]):
-            wl = user.watch_list or ["NVDA", "AAPL", "MSFT"]
+            wl = user.watch_list or []
+            if not wl:
+                response = "Your watchlist is empty. Tell me which stocks you'd like to track (e.g. 'Add NVDA and TSLA to my watchlist')."
+                await save_message(user_id, "user", user_input)
+                await save_message(user_id, "assistant", response)
+                return response
             quotes_summary = []
             for sym in wl:
                 q = MarketDataProvider.get_quote(sym)
@@ -284,13 +302,46 @@ class AtlasAgentService:
             await save_message(user_id, "user", user_input)
             await save_message(user_id, "assistant", response)
             return response
+            
+        # --- ALERT CREATION ---
+        if any(phrase in lower_input for phrase in ["notify me", "alert me", "tell me if", "let me know if"]):
+            if tickers:
+                symbol = tickers[0]
+                q = MarketDataProvider.get_quote(symbol)
+                
+                condition = "drop_percent" if any(w in lower_input for w in ["drop", "fall", "down"]) else "up_percent"
+                
+                import re
+                nums = re.findall(r'\d+(?:\.\d+)?', lower_input)
+                threshold = float(nums[0]) if nums else 5.0 # Default 5%
+                
+                new_alert = {
+                    "ticker": symbol,
+                    "condition": condition,
+                    "threshold": threshold,
+                    "base_price": q.price if q else 0.0
+                }
+                
+                current_alerts = list(user.alerts or [])
+                current_alerts.append(new_alert)
+                await update_user_profile(user_id, {"alerts": current_alerts})
+                
+                dir_str = "drops" if condition == "drop_percent" else "moves up"
+                response = f"🔔 Alert set: I will notify you if {symbol} {dir_str} by {threshold}% from its current price."
+                if not q:
+                    response += " (Waiting for market data connection to set base price)."
+                    
+                await save_message(user_id, "user", user_input)
+                await save_message(user_id, "assistant", response)
+                return response
 
         # --- INTENT 0: Morning & Evening Briefings ---
-        if any(phrase in lower_input for phrase in ["morning brief", "morning briefing", "daily brief", "daily briefing", "market overview", "market brief", "what should i know today", "what's happening today"]):
+        if any(phrase in lower_input for phrase in ["morning brief", "morning briefing", "daily brief", "daily briefing", "market overview", "market brief", "what should i know today", "what's happening today", "market-moving events", "biggest market-moving", "market intelligence"]):
+            await save_message(user_id, "assistant", "Generating your curated morning brief...")
             from app.scheduler import generate_curated_morning_brief
             user_dict = {
                 "telegram_id": user_id,
-                "watch_list": user.watch_list or ["NVDA", "AAPL", "MSFT"],
+                "watch_list": user.watch_list or [],
                 "role": user.role,
                 "interests": user.interests
             }
@@ -303,7 +354,7 @@ class AtlasAgentService:
             from app.scheduler import generate_curated_evening_wrap
             user_dict = {
                 "telegram_id": user_id,
-                "watch_list": user.watch_list or ["NVDA", "AAPL", "MSFT"],
+                "watch_list": user.watch_list or [],
                 "role": user.role,
                 "interests": user.interests
             }

@@ -3,7 +3,7 @@ from langchain_core.tools import tool
 from app.market_data import MarketDataProvider
 from datetime import datetime, timezone
 
-CURRENT_DATE_STR = "August 9, 2026"
+from app.market_data import get_current_date_str
 
 @tool
 def get_stock_quote(ticker: str) -> str:
@@ -40,7 +40,7 @@ def get_market_overview(scope: str = "us") -> str:
             else:
                 lines.append(f"  {name}: {quote.price:,.2f} ({sign}{quote.percent_change:.2f}%)")
     
-    lines.append(f"\n📚 Yahoo Finance · Aug 9, 2026 · {now_utc}")
+    lines.append(f"\n📚 Yahoo Finance · {get_current_date_str()} · {now_utc}")
     return "\n".join(lines)
 
 @tool
@@ -102,7 +102,7 @@ def get_earnings_calendar(ticker: str) -> str:
             if target_mean:
                 lines.append(f"  Price Target: ${target_low:.0f} – ${target_high:.0f} (Mean: ${target_mean:.0f})")
         
-        lines.append(f"\n📚 Yahoo Finance · Aug 9, 2026 · {now_utc}")
+        lines.append(f"\n📚 Yahoo Finance · {get_current_date_str()} · {now_utc}")
         return "\n".join(lines)
     except Exception as e:
         return f"Unable to retrieve earnings data for {ticker.upper()}: {str(e)}"
@@ -125,7 +125,7 @@ def compare_companies_data(tickers: List[str]) -> str:
             pe_str = f" ({quote.pe_ratio:.1f}x P/E)" if quote.pe_ratio else ""
             lines.append(f"{quote.symbol}  ${quote.price:,.2f} · {quote.market_cap_str}{pe_str}")
             
-    lines.append(f"\n📚 Yahoo Finance · Aug 9, 2026 · {now_utc}")
+    lines.append(f"\n📚 Yahoo Finance · {get_current_date_str()} · {now_utc}")
     return "\n".join(lines)
 
 @tool
@@ -146,7 +146,7 @@ def get_company_news(ticker: str) -> str:
         source_apis.add(a.source_api)
         
     source_str = " / ".join(list(source_apis)) if source_apis else "Yahoo Finance"
-    output.append(f"\n📚 Sources: {source_str} News · Aug 9, 2026 · {now_utc}")
+    output.append(f"\n📚 Sources: {source_str} News · {get_current_date_str()} · {now_utc}")
     return "\n".join(output)
 
 @tool

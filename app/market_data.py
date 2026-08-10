@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any, Tuple
 from pydantic import BaseModel
 import yfinance as yf
@@ -256,7 +256,7 @@ class FinancialDataRouter:
         
         # Determine date range (past 3 days)
         now = datetime.now()
-        start_date = (now.replace(day=now.day-3)).strftime('%Y-%m-%d')
+        start_date = (now - timedelta(days=3)).strftime('%Y-%m-%d')
         end_date = now.strftime('%Y-%m-%d')
         
         if fh:
@@ -358,9 +358,9 @@ class FinancialDataRouter:
                     
                     overview.update({
                         "name": profile.get('name', symbol.upper()),
-                        "sector": profile.get('finnhubIndustry', 'Technology'),
-                        "industry": profile.get('finnhubIndustry', 'Technology'),
-                        "core_business": profile.get('finnhubIndustry', 'Technology'),
+                        "sector": profile.get('finnhubIndustry', 'N/A'),
+                        "industry": profile.get('finnhubIndustry', 'N/A'),
+                        "core_business": profile.get('finnhubIndustry', 'N/A'),
                         "business_summary": "Data sourced from Finnhub & SEC Filings.",
                         "market_cap": mkt_cap,
                         "market_cap_str": cls._format_market_cap(mkt_cap),
@@ -377,13 +377,13 @@ class FinancialDataRouter:
             ticker = yf.Ticker(symbol.upper())
             info = ticker.info or {}
             industry = info.get('industry', '')
-            sector = info.get('sector', 'Technology')
+            sector = info.get('sector', 'N/A')
             summary = info.get('longBusinessSummary', '')
             
             overview.update({
                 "name": info.get('longName', symbol.upper()),
                 "sector": sector,
-                "industry": industry or 'Technology',
+                "industry": industry or 'N/A',
                 "core_business": industry if industry else f"{sector} & Operations",
                 "business_summary": summary[:500] if summary else "",
                 "market_cap": info.get('marketCap'),

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-CURRENT_DATE_STR = "August 9, 2026"
+from app.market_data import get_current_date_str
 
 BRAND_EMOJIS = {
     "AAPL": "🍎",
@@ -88,8 +88,8 @@ class CompanyOverviewEngine:
         sources_list = [quote.source] + used_publishers
         sources_str = " · ".join(sources_list)
         
-        sector = overview.get("sector", "Technology")
-        business_line = overview.get("core_business", overview.get("industry", "Technology & Operations"))
+        sector = overview.get("sector", "N/A")
+        business_line = overview.get("core_business", overview.get("industry", "N/A"))
         summary = overview.get("business_summary", "")
 
         prompt = (
@@ -109,9 +109,9 @@ class CompanyOverviewEngine:
             "EVIDENCE DISCIPLINE RULES:\n"
             "1. Output ONLY verified factual points backed by the data ledger.\n"
             "2. Under 'Business', list key segments/offerings concisely (e.g. Search · Advertising · YouTube · Cloud · AI).\n"
-            "3. Under 'Key Takeaways', provide 1-2 bullet points derived STRICTLY from current metrics or verified news.\n"
+            "3. Under 'Key Takeaways', clearly separate FACT from INFERENCE. Tell the user *why it matters* (e.g. impact on fundamentals, valuation, or macro conditions). Provide 1-2 bullet points derived STRICTLY from current metrics or verified news.\n"
             "4. Under 'Risks', provide 1 bullet point on known structural or regulatory factors directly relevant to this business.\n"
-            "5. NO generic fluff, NO unverified forward-looking speculation.\n"
+            "5. NO generic fluff, NO unverified forward-looking speculation. Read like an objective analysis, not trade advice.\n"
             "6. Follow the EXACT layout below.\n\n"
             "EXACT OUTPUT TEMPLATE:\n\n"
             f"{emoji} {brand_name} ({quote.symbol})\n\n"

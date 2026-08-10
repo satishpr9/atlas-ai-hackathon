@@ -22,6 +22,9 @@ class UserProfile(BaseModel):
     connected_accounts: List[str] = Field(default_factory=list) # e.g. ["Google Drive", "Google Calendar"]
     onboarding_stage: str = "initial" # "initial", "profiled", "completed"
     
+    # Proactive Alert Triggers
+    alerts: List[Dict[str, Any]] = Field(default_factory=list) # e.g. [{"ticker": "TSLA", "condition": "drop_percent", "threshold": 5.0, "base_price": 200.0}]
+    
     # Context summary (a persistent synthesis of who they are and their workflow)
     context_summary: str = ""
     
