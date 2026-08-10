@@ -39,17 +39,18 @@ async def get_or_create_user(telegram_id: int, first_name: Optional[str] = None,
     if telegram_id in _LOCAL_USERS_CACHE:
         return UserProfile(**_LOCAL_USERS_CACHE[telegram_id])
         
-    # 2. Try MongoDB with fast timeout
+    # 2. Try PostgreSQL
     try:
         from app.database import db
-        db_instance = db.get_db()
-        if db_instance is not None:
-            user_dict = await db_instance["users"].find_one({"telegram_id": telegram_id})
-            if user_dict:
-                _LOCAL_USERS_CACHE[telegram_id] = user_dict
-                return UserProfile(**user_dict)
+        if db.pool is not None:
+            async with db.pool.acquire() as conn:
+                row = await conn.fetchrow("SELECT profile_data FROM users WHERE telegram_id = $1", telegram_id)
+                if row:
+                    user_dict = json.loads(row['profile_data'])
+                    _LOCAL_USERS_CACHE[telegram_id] = user_dict
+                    return UserProfile(**user_dict)
     except Exception as e:
-        logger.debug(f"MongoDB lookup bypassed: {e}")
+        logger.debug(f"PostgreSQL lookup bypassed: {e}")
         
     # 3. Create new user profile
     new_user = UserProfile(
@@ -57,16 +58,26 @@ async def get_or_create_user(telegram_id: int, first_name: Optional[str] = None,
         first_name=first_name,
         username=username
     )
-    _LOCAL_USERS_CACHE[telegram_id] = new_user.model_dump()
+    user_dict = new_user.model_dump()
+    _LOCAL_USERS_CACHE[telegram_id] = user_dict
     _save_local_store()
     
     try:
         from app.database import db
-        db_instance = db.get_db()
-        if db_instance is not None:
-            await db_instance["users"].insert_one(new_user.model_dump())
-    except Exception:
-        pass
+        if db.pool is not None:
+            async with db.pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO users (telegram_id, profile_data) 
+                    VALUES ($1, $2) 
+                    ON CONFLICT (telegram_id) 
+                    DO UPDATE SET profile_data = EXCLUDED.profile_data
+                    """,
+                    telegram_id,
+                    json.dumps(user_dict, default=str)
+                )
+    except Exception as e:
+        logger.error(f"Failed to insert new user in PostgreSQL: {e}")
         
     return new_user
 
@@ -81,14 +92,20 @@ async def add_message_to_history(telegram_id: int, role: str, content: str):
         
     try:
         from app.database import db
-        db_instance = db.get_db()
-        if db_instance is not None:
-            await db_instance["users"].update_one(
-                {"telegram_id": telegram_id},
-                {"$push": {"chat_history": msg.model_dump()}, "$set": {"updated_at": datetime.now(timezone.utc)}}
-            )
-    except Exception:
-        pass
+        if db.pool is not None and telegram_id in _LOCAL_USERS_CACHE:
+            async with db.pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO users (telegram_id, profile_data) 
+                    VALUES ($1, $2) 
+                    ON CONFLICT (telegram_id) 
+                    DO UPDATE SET profile_data = EXCLUDED.profile_data
+                    """,
+                    telegram_id,
+                    json.dumps(_LOCAL_USERS_CACHE[telegram_id], default=str)
+                )
+    except Exception as e:
+        logger.error(f"Failed to update chat history in PostgreSQL: {e}")
 
 async def save_message(telegram_id: int, role: str, content: str):
     await add_message_to_history(telegram_id, role, content)
@@ -107,15 +124,20 @@ async def update_user_profile(telegram_id: int, updates: dict):
         
     try:
         from app.database import db
-        db_instance = db.get_db()
-        if db_instance is not None:
-            updates["updated_at"] = datetime.now(timezone.utc)
-            await db_instance["users"].update_one(
-                {"telegram_id": telegram_id},
-                {"$set": updates}
-            )
-    except Exception:
-        pass
+        if db.pool is not None and telegram_id in _LOCAL_USERS_CACHE:
+            async with db.pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO users (telegram_id, profile_data) 
+                    VALUES ($1, $2) 
+                    ON CONFLICT (telegram_id) 
+                    DO UPDATE SET profile_data = EXCLUDED.profile_data
+                    """,
+                    telegram_id,
+                    json.dumps(_LOCAL_USERS_CACHE[telegram_id], default=str)
+                )
+    except Exception as e:
+        logger.error(f"Failed to update user profile in PostgreSQL: {e}")
 
 def get_all_users() -> List[Dict[str, Any]]:
     return list(_LOCAL_USERS_CACHE.values())

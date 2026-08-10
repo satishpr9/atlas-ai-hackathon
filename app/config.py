@@ -13,8 +13,7 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = None
     openai_base_url: str = "https://api.aicredits.in/v1"
     model_name: str = "gpt-4o-mini"
-    mongodb_uri: str = "mongodb://localhost:27017"
-    database_name: str = "atlas_finance_db"
+    postgres_uri: str = "postgresql://postgres:Satishpr92@!?@db.fakywnmyjduhfwfttixa.supabase.co:5432/postgres"
     finnhub_api_key: Optional[str] = None
     bot_password: str = "Atlas2024"
     port: int = 8000

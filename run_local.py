@@ -9,8 +9,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 async def main():
-    logger.info("Connecting to MongoDB...")
-    db.connect()
+    logger.info("Starting Atlas AI Bot Local Daemon...")
+    await db.connect()
     
     logger.info("Starting Telegram bot (polling mode)...")
     app = get_application()
@@ -37,7 +37,7 @@ async def main():
         logger.info("Stopping bot...")
         await app.updater.stop()
         await app.stop()
-        db.disconnect()
+        await db.disconnect()
 
 if __name__ == "__main__":
     try:

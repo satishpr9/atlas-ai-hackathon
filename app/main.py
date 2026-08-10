@@ -16,8 +16,8 @@ from app.config import settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting up FastAPI application...")
-    db.connect()
+    logger.info("Starting Atlas AI Backend...")
+    await db.connect()
     
     global bot_app
     bot_app = get_application()
@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Shutting down FastAPI application...")
     await bot_app.stop()
-    db.disconnect()
+    await db.disconnect()
 
 app = FastAPI(lifespan=lifespan, title="Atlas AI Financial Assistant")
 

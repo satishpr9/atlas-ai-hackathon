@@ -11,6 +11,7 @@ APScheduler==3.11.3
 # Database & Drivers
 motor==3.7.1
 pymongo==4.17.0
+asyncpg==0.29.0
 
 # LangChain & LangGraph Framework
 langchain==1.3.14
