@@ -51,11 +51,11 @@ INSTRUCTIONS:
 2. Discard any event with a score < 60 or that is low-quality filler.
 3. Select the TOP 3 to 5 most important events.
 4. If there are NO events > 60 impact, output EXACTLY the string: "NO_EVENTS" and nothing else.
-5. If there ARE valid events, format each event EXACTLY like this:
+5. DO NOT act like a news reader reporting headlines. Instead, synthesize the event into an actionable intelligence insight.
+Format each event EXACTLY like this (NO HEADLINES):
 
-[Number]. [Symbol]
-[Headline]
-Why it matters → [Answer exactly: What changed? Who is affected? Why could the market care? Keep it to 1-2 concise sentences. Do not use generic filler.]
+[Number]. [Symbol] → [One-sentence synthesis of the actual event and its immediate operational/financial impact. E.g. "TSMC's 44.7% monthly revenue jump validates sustained AI infrastructure demand."]
+Impact: [1 concise sentence on how this specifically affects the market or the user's watchlist. E.g. "This reinforces structural momentum for NVDA and AMD ahead of their earnings."]
 
 Output ONLY the formatted list of events (or NO_EVENTS). No intro, no outro.
 """
@@ -72,15 +72,11 @@ Output ONLY the formatted list of events (or NO_EVENTS). No intro, no outro.
     date_str = datetime.now(timezone.utc).strftime("%b %d, %Y")
     
     briefing = (
-        f"🌅 Market Intelligence\n\n"
-        f"🔥 Biggest Market Movers\n\n"
+        f"🌅 Morning Intelligence\n\n"
         f"{events_str}\n\n"
-        f"👀 Your Watchlist\n"
+        f"👀 Watchlist Check\n"
         f"{wl_str}\n\n"
-        f"💡 Bottom line\n"
-        f"Algorithms are processing these catalysts. Watch for volume confirmation at the open.\n\n"
-        f"Sources\n"
-        f"Yahoo Finance Real-time Feed · {date_str}"
+        f"Sources: Market Data Feed · {date_str}"
     )
     
     return briefing
