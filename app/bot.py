@@ -133,6 +133,11 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles voice messages by transcribing audio and routing to conversational agent."""
     user_id = update.effective_user.id
+    user = await get_or_create_user(user_id)
+    if not user.is_authorized:
+        await update.message.reply_text("🔒 Welcome to Atlas. This is a private financial intelligence bot. Please enter the access code to continue.")
+        return
+
     voice = update.message.voice or update.message.audio
     if not voice:
         return
@@ -169,6 +174,11 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles financial charts, table screenshots, and document images using Vision analysis."""
     user_id = update.effective_user.id
+    user = await get_or_create_user(user_id)
+    if not user.is_authorized:
+        await update.message.reply_text("🔒 Welcome to Atlas. This is a private financial intelligence bot. Please enter the access code to continue.")
+        return
+
     photos = update.message.photo
     if not photos:
         return
